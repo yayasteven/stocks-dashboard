@@ -26,10 +26,10 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
-    background: var(--bg); color: var(--text); font-size: 14px; padding: 20px;
+    background: var(--bg); color: var(--text); font-size: 14px; padding: 28px 32px;
     min-height: 100vh;
   }
-  .container { max-width: 1400px; margin: 0 auto; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 8px; }
   .topbar {
     display: flex; align-items: center; gap: 16px;
     margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
@@ -285,9 +285,9 @@
           datasets: [{
             label: '收盤價',
             data: closes,
-            borderColor: '#b45309',
-            backgroundColor: 'rgba(180,83,9,0.08)',
-            borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+            borderColor: '#64748b',
+            backgroundColor: 'rgba(100,116,139,0.06)',
+            borderWidth: 1, pointRadius: 0, tension: 0.1, fill: true,
           }]
         },
         options: {
@@ -332,8 +332,8 @@
         data: {
           labels,
           datasets: [
-            { label: '月營收（億）', data: values, backgroundColor: 'rgba(37,99,235,0.55)', yAxisID: 'y' },
-            { label: 'YoY %', data: yoyData, type: 'line', borderColor: '#be185d', backgroundColor: 'transparent', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
+            { label: '月營收（億）', data: values, backgroundColor: 'rgba(100,116,139,0.45)', borderColor: 'rgba(100,116,139,0.6)', borderWidth: 1, yAxisID: 'y' },
+            { label: 'YoY %', data: yoyData, type: 'line', borderColor: '#be185d', backgroundColor: 'transparent', pointRadius: 2, borderWidth: 1.5, yAxisID: 'y1' }
           ]
         },
         options: {
@@ -449,8 +449,8 @@
         data: {
           labels,
           datasets: [
-            { label: 'PE', data: values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.1 },
-            { label: '中位數', data: labels.map(_ => median), borderColor: '#b45309', borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
+            { label: 'PE', data: values, borderColor: '#64748b', backgroundColor: 'rgba(100,116,139,0.05)', borderWidth: 1, pointRadius: 0, fill: true, tension: 0.1 },
+            { label: '中位數', data: labels.map(_ => median), borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
           ]
         },
         options: {
