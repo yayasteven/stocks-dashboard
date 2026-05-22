@@ -1748,10 +1748,29 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     showToast('已切回離線模式');
   }
 
-  // PWA: 註冊 service worker
+  // PWA: 註冊 service worker（v14: 強制更新邏輯）
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    window.addEventListener('load', async () => {
+      try {
+        // 註冊新 SW，updateViaCache: 'none' 強制每次都檢查更新
+        const reg = await navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
+        // 主動檢查更新
+        reg.update();
+        // 若有新 SW 安裝完，立即 skipWaiting + reload
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (newSW) {
+            newSW.addEventListener('statechange', () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('[SW] 新版本就緒，重新載入頁面');
+                window.location.reload();
+              }
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('SW 註冊失敗', err);
+      }
     });
   }
 
