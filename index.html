@@ -464,7 +464,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v26</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v27</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
@@ -472,7 +472,7 @@
       </div>
     </div>
     <div class="actions">
-      <button class="btn primary" onclick="openAddModal()">＋ 新增個股</button>
+      <button class="btn primary" id="addBtn" onclick="onAddBtnClick()">＋ 新增個股</button>
       <button class="btn" id="pullBtn" onclick="pullFromGist()" style="display:none">📥 拉取</button>
       <button class="btn" id="syncBtn" onclick="syncToGist()" style="display:none">📤 同步</button>
       <button class="btn" onclick="exportData()">⬇ 匯出</button>
@@ -620,6 +620,33 @@
       <button class="btn danger" id="deleteBtn" onclick="deleteStock()" style="display:none">刪除個股</button>
       <button class="btn" onclick="closeModal()">取消</button>
       <button class="btn primary" onclick="document.getElementById('stockForm').requestSubmit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- v27: 個股挑選器 Modal（自訂分頁加入用）-->
+<div class="modal-overlay" id="pickerModal">
+  <div class="modal" style="max-width:540px;">
+    <div class="modal-header">
+      <h2>加入個股到「<span id="pickerWlName">分頁</span>」</h2>
+      <button class="close" onclick="closePickerModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;line-height:1.5;">
+        勾選要加入此分頁的個股、取消勾選會從此分頁移除（不會刪除個股本身）。<br>
+        要建立全新個股，請切到「全部」分頁再點「＋ 新增個股」。
+      </p>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input type="search" id="pickerSearch" placeholder="搜尋代號/名稱..." style="flex:1;padding:6px 10px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:5px;font-size:13px;">
+        <button class="btn" type="button" onclick="pickerToggleAll(true)">全選</button>
+        <button class="btn" type="button" onclick="pickerToggleAll(false)">全不選</button>
+      </div>
+      <div id="pickerList" style="max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:var(--bg);"></div>
+      <div id="pickerStatus" style="font-size:12px;color:var(--text-dim);margin-top:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closePickerModal()">取消</button>
+      <button class="btn primary" onclick="savePickerSelection()">儲存</button>
     </div>
   </div>
 </div>
@@ -837,6 +864,100 @@
 
 
 
+  // ========== v27: 主按鈕分情境 ==========
+  function onAddBtnClick() {
+    const wl = data.watchlists.find(w => w.id === data.activeWatchlist);
+    if (!wl || wl.id === 'all' || wl.readonly) {
+      openAddModal();
+    } else {
+      openPickerModal(wl.id);
+    }
+  }
+
+  function updateAddBtnLabel() {
+    const wl = data.watchlists.find(w => w.id === data.activeWatchlist);
+    const btn = document.getElementById('addBtn');
+    if (!btn) return;
+    if (!wl || wl.id === 'all' || wl.readonly) {
+      btn.textContent = '＋ 新增個股';
+      btn.title = '建立全新個股（會加入「全部」分頁）';
+    } else {
+      btn.textContent = '＋ 加入此分頁';
+      btn.title = `從個股清單挑選加入「${wl.name}」`;
+    }
+  }
+
+  // 個股挑選器 (picker)
+  let pickerActiveWlId = null;
+
+  function openPickerModal(wlId) {
+    const wl = data.watchlists.find(w => w.id === wlId);
+    if (!wl) return;
+    pickerActiveWlId = wlId;
+    document.getElementById('pickerWlName').textContent = wl.name;
+    renderPickerList();
+    document.getElementById('pickerSearch').value = '';
+    document.getElementById('pickerSearch').oninput = renderPickerList;
+    document.getElementById('pickerModal').classList.add('show');
+  }
+
+  function renderPickerList() {
+    const wl = data.watchlists.find(w => w.id === pickerActiveWlId);
+    if (!wl) return;
+    const search = (document.getElementById('pickerSearch').value || '').toLowerCase().trim();
+    const list = document.getElementById('pickerList');
+    const filtered = data.stocks.filter(s =>
+      !search || `${s.code} ${s.name}`.toLowerCase().includes(search)
+    );
+    list.innerHTML = filtered.map(s => `
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;">
+        <input type="checkbox" data-code="${s.code}" ${wl.codes.includes(s.code) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+        <span class="stock-code" style="width:60px;font-family:monospace;">${s.code}</span>
+        <span style="flex:1;font-weight:500;">${s.name}</span>
+        <span class="industry-chip industry-${s.industry}" style="font-size:11px;">${s.industry || '—'}</span>
+      </label>
+    `).join('');
+    updatePickerCount();
+    [...list.querySelectorAll('input[type="checkbox"]')].forEach(cb => {
+      cb.addEventListener('change', updatePickerCount);
+    });
+  }
+
+  function updatePickerCount() {
+    const total = document.querySelectorAll('#pickerList input[type="checkbox"]').length;
+    const checked = document.querySelectorAll('#pickerList input[type="checkbox"]:checked').length;
+    document.getElementById('pickerStatus').textContent = `已勾選 ${checked} / ${total}`;
+  }
+
+  function pickerToggleAll(state) {
+    document.querySelectorAll('#pickerList input[type="checkbox"]').forEach(cb => cb.checked = state);
+    updatePickerCount();
+  }
+
+  function savePickerSelection() {
+    const wl = data.watchlists.find(w => w.id === pickerActiveWlId);
+    if (!wl) return;
+    // 找到目前 picker 顯示中的勾選狀態（只更新「目前顯示中」的，避免搜尋過濾時誤刪）
+    // 但實際上 picker 一次顯示所有，所以直接全收
+    const visibleCheckboxes = [...document.querySelectorAll('#pickerList input[type="checkbox"]')];
+    const visibleCodes = visibleCheckboxes.map(cb => cb.dataset.code);
+    const checkedCodes = visibleCheckboxes.filter(cb => cb.checked).map(cb => cb.dataset.code);
+    // 已勾選的加入、未勾選的（但屬於 visible）從 wl.codes 移除
+    const newCodes = wl.codes.filter(c => !visibleCodes.includes(c) || checkedCodes.includes(c));
+    checkedCodes.forEach(c => { if (!newCodes.includes(c)) newCodes.push(c); });
+    wl.codes = newCodes;
+    markDirty();
+    closePickerModal();
+    renderWatchlistTabs();
+    renderTable();
+    showToast(`已更新「${wl.name}」`);
+  }
+
+  function closePickerModal() {
+    document.getElementById('pickerModal').classList.remove('show');
+    pickerActiveWlId = null;
+  }
+
   // ========== v19: 多分頁 watchlists ==========
   function renderWatchlistTabs() {
     const container = document.getElementById('watchlistTabs');
@@ -902,6 +1023,7 @@
     data.activeWatchlist = id;
     renderWatchlistTabs();
     renderTable();
+    updateAddBtnLabel();
   }
 
   function getActiveWatchlistCodes() {
@@ -2068,6 +2190,7 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     }
     renderWatchlistTabs();
     renderTable();
+    updateAddBtnLabel();
     updateCloudUI();
     if (!isCloudMode()) checkBackupOnLoad();
   }
