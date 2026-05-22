@@ -12,18 +12,22 @@
 <link rel="apple-touch-icon" href="icon-192.svg">
 <title>老爸個股追蹤 · PCB / CCL 供應鏈</title>
 <script>
-// v15 緊急清理：先 unregister 所有舊 service worker + 清快取，再讓頁面正常載入
-(function emergencyCleanup() {
+// v16: 偵測到舊 SW 就主動清除 + reload 一次，sessionStorage 防無窮迴圈
+(function () {
   if (!('serviceWorker' in navigator)) return;
+  if (sessionStorage.getItem('swCleaned')) return;
   navigator.serviceWorker.getRegistrations().then(regs => {
     if (regs.length === 0) return;
-    // 強制檢查每個 SW 的版本（透過 update()），讓新 SW 接手
-    Promise.all(regs.map(r => r.update().catch(() => null))).then(() => {
-      // 如果頁面被舊 SW 控制，重新載入一次讓新 SW 接手
-      if (navigator.serviceWorker.controller && !sessionStorage.getItem('swReloaded')) {
-        sessionStorage.setItem('swReloaded', '1');
-        console.log('[v15] 觸發 SW 更新，重新載入...');
-        setTimeout(() => window.location.reload(), 100);
+    sessionStorage.setItem('swCleaned', '1');
+    Promise.all(regs.map(r => r.unregister())).then(() => {
+      if ('caches' in window) {
+        caches.keys().then(keys => {
+          Promise.all(keys.map(k => caches.delete(k))).then(() => {
+            window.location.reload();
+          });
+        });
+      } else {
+        window.location.reload();
       }
     });
   }).catch(() => {});
@@ -1766,31 +1770,7 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     showToast('已切回離線模式');
   }
 
-  // PWA: 註冊 service worker（v14: 強制更新邏輯）
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      try {
-        // 註冊新 SW，updateViaCache: 'none' 強制每次都檢查更新
-        const reg = await navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
-        // 主動檢查更新
-        reg.update();
-        // 若有新 SW 安裝完，立即 skipWaiting + reload
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (newSW) {
-            newSW.addEventListener('statechange', () => {
-              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[SW] 新版本就緒，重新載入頁面');
-                window.location.reload();
-              }
-            });
-          }
-        });
-      } catch (err) {
-        console.warn('SW 註冊失敗', err);
-      }
-    });
-  }
+  // v16: 暫時不註冊 SW（先求穩定，PWA 之後再加）
 
   // ========== Init ==========
   async function init() {
