@@ -1,5 +1,6 @@
 // 個股追蹤 PWA Service Worker
-const CACHE_NAME = 'stocks-dashboard-v1';
+// v2: 改為網路優先（network-first），確保更新即時可見
+const CACHE_NAME = 'stocks-dashboard-v2';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -20,21 +21,22 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = e.request.url;
-  // GitHub API、FinMind API 等動態資料一律不快取，由瀏覽器直接打
+  // 動態 API 直接讓瀏覽器處理，不快取
   if (url.includes('api.github.com') ||
       url.includes('api.finmindtrade.com') ||
       url.includes('gist.githubusercontent.com')) {
     return;
   }
-  // 靜態資源：cache-first
+  // 網路優先：每次先試網路，網路失敗才用快取
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-      // 動態加入快取
+    fetch(e.request).then(resp => {
       if (resp.ok && e.request.method === 'GET') {
         const respClone = resp.clone();
         caches.open(CACHE_NAME).then(c => c.put(e.request, respClone));
       }
       return resp;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() =>
+      caches.match(e.request).then(r => r || caches.match('./index.html'))
+    )
   );
 });
