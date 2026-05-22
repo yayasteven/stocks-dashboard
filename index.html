@@ -1779,4 +1779,21 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
       try {
         const result = await gistGet();
         if (!result.empty) {
-          data = JSON.parse(resu
+          data = JSON.parse(result.content);
+        }
+      } catch (err) {
+        console.error('Gist 載入失敗，使用本地資料', err);
+        showToast('Gist 載入失敗：' + err.message + '（暫用本地）', true);
+      }
+    }
+    renderTable();
+    updateCloudUI();
+    if (!isCloudMode()) checkBackupOnLoad();
+  }
+  init();
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeSettingsModal(); }
+  });
+</script>
+</body>
+</html>
