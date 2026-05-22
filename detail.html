@@ -238,8 +238,23 @@
   }
 
   // ===== Chart.js 共用設定 =====
-  Chart.defaults.color = '#5a6776';
-  Chart.defaults.borderColor = '#d8dde4';
+  // 主題感知配色：明亮淺灰、暗黑深灰，都跟背景很接近
+  const __dark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+  const themeColors = () => __dark() ? {
+    line: '#52617a',       // 暗模式：比 bg-card #2a323e 亮一階，低對比
+    lineFill: 'rgba(82,97,122,0.10)',
+    dim: '#475569',
+    axisText: '#8b95a4',
+    grid: '#3a4250',
+  } : {
+    line: '#94a3b8',       // 明模式：比 #ebedf0 暗一階，低對比
+    lineFill: 'rgba(148,163,184,0.08)',
+    dim: '#cbd5e1',
+    axisText: '#64748b',
+    grid: '#e2e8f0',
+  };
+  Chart.defaults.color = themeColors().axisText;
+  Chart.defaults.borderColor = themeColors().grid;
   Chart.defaults.font.family = '-apple-system, "Segoe UI", sans-serif';
 
   // ===== 個股基本資訊 =====
@@ -285,8 +300,8 @@
           datasets: [{
             label: '收盤價',
             data: closes,
-            borderColor: '#64748b',
-            backgroundColor: 'rgba(100,116,139,0.06)',
+            borderColor: themeColors().line,
+            backgroundColor: themeColors().lineFill,
             borderWidth: 1, pointRadius: 0, tension: 0.1, fill: true,
           }]
         },
@@ -449,8 +464,8 @@
         data: {
           labels,
           datasets: [
-            { label: 'PE', data: values, borderColor: '#64748b', backgroundColor: 'rgba(100,116,139,0.05)', borderWidth: 1, pointRadius: 0, fill: true, tension: 0.1 },
-            { label: '中位數', data: labels.map(_ => median), borderColor: '#94a3b8', borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
+            { label: 'PE', data: values, borderColor: themeColors().line, backgroundColor: themeColors().lineFill, borderWidth: 1, pointRadius: 0, fill: true, tension: 0.1 },
+            { label: '中位數', data: labels.map(_ => median), borderColor: themeColors().dim, borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
           ]
         },
         options: {
