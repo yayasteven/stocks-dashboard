@@ -4,12 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>個股詳細 · 載入中</title>
+<script>
+(function() {
+  const saved = localStorage.getItem('dashboardTheme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+})();
+</script>
 <style>
   :root {
-    --bg: #ffffff; --bg-card: #f8f9fb; --bg-card-2: #eef1f5;
+    --bg: #ebedf0; --bg-card: #ffffff; --bg-card-2: #f5f6f8;
     --border: #d8dde4; --text: #1a1f24; --text-dim: #5a6776; --text-muted: #9097a3;
     --accent: #2563eb; --green: #16a34a; --red: #dc2626; --yellow: #ca8a04;
     --pink: #be185d; --gold: #b45309;
+  }
+  [data-theme="dark"] {
+    --bg: #1e2530; --bg-card: #2a323e; --bg-card-2: #353d4a;
+    --border: #3d4554; --text: #e6edf3; --text-dim: #8b95a4; --text-muted: #5a6470;
+    --accent: #3b82f6; --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+    --pink: #ec4899; --gold: #fbbf24;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
