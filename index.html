@@ -190,7 +190,46 @@
   .pe-overridden {
     position: relative; font-style: italic;
   }
-  .pe-overridden::after {
+
+  /* 多分頁 tabs */
+  .watchlist-tabs {
+    display: flex; gap: 4px; align-items: center;
+    padding: 0 4px; margin-bottom: -1px;
+    overflow-x: auto; flex-wrap: nowrap;
+  }
+  .wl-tab {
+    padding: 8px 14px; background: var(--bg-card); border: 1px solid var(--border);
+    border-bottom: none; border-radius: 8px 8px 0 0;
+    color: var(--text-dim); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 6px; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .wl-tab:hover { color: var(--text); background: var(--bg-card-2); }
+  .wl-tab.active {
+    background: var(--bg-card); color: var(--text);
+    border-color: var(--accent);
+    box-shadow: inset 0 -2px 0 var(--bg-card), inset 0 2px 0 var(--accent);
+    font-weight: 500;
+  }
+  .wl-tab .close-x {
+    color: var(--text-muted); padding: 2px 4px;
+    border-radius: 3px; margin-left: 4px;
+    font-size: 12px; line-height: 1;
+  }
+  .wl-tab .close-x:hover { background: rgba(239,68,68,0.2); color: var(--red); }
+  .wl-add {
+    padding: 8px 12px; background: transparent; border: 1px dashed var(--border);
+    color: var(--text-dim); cursor: pointer; font-size: 13px; border-radius: 6px;
+  }
+  .wl-add:hover { color: var(--accent); border-color: var(--accent); }
+  .wl-stock-toggle {
+    margin-left: 4px; opacity: 0.6;
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    font-size: 11px;
+  }
+  .wl-stock-toggle:hover { opacity: 1; background: var(--bg-card-2); }
+
+    .pe-overridden::after {
     content: '*'; color: #fbbf24; margin-left: 2px;
     font-size: 11px; vertical-align: super; font-style: normal;
   }
@@ -391,6 +430,9 @@
 
   <div class="summary" id="summaryCards"></div>
 
+  
+  <div class="watchlist-tabs" id="watchlistTabs"></div>
+
   <div class="table-wrap">
     <div class="toolbar">
       <input type="search" id="searchInput" placeholder="搜尋代號 / 名稱..." oninput="renderTable()">
@@ -572,6 +614,14 @@
   let data = JSON.parse(JSON.stringify(window.STOCK_DATA || {meta:{lastUpdated:"—"},industries:[],stocks:[]}));
   let editingCode = null;
   let sortDirection = 'asc';
+  // v19: 確保 watchlists 結構存在（向下相容）
+  if (!data.watchlists) {
+    data.watchlists = [{ id: 'all', name: '全部', codes: data.stocks.map(s => s.code), readonly: true }];
+    data.activeWatchlist = 'all';
+  } else if (!data.watchlists.find(w => w.id === 'all')) {
+    data.watchlists.unshift({ id: 'all', name: '全部', codes: data.stocks.map(s => s.code), readonly: true });
+  }
+  if (!data.activeWatchlist) data.activeWatchlist = data.watchlists[0].id;
   let hasUnsavedChanges = false;
   const LOCAL_BACKUP_KEY = 'stockDashboardBackup';
 
@@ -684,7 +734,9 @@
     const search = document.getElementById('searchInput').value.toLowerCase().trim();
     const indFilter = document.getElementById('industryFilter').value;
     const sortKey = document.getElementById('sortField').value;
+    const activeCodes = new Set(getActiveWatchlistCodes());
     let arr = data.stocks.filter(s => {
+      if (!activeCodes.has(s.code)) return false;
       if (search && !`${s.code} ${s.name}`.toLowerCase().includes(search)) return false;
       if (indFilter && s.industry !== indFilter) return false;
       return true;
@@ -726,7 +778,110 @@
     return `<span class="eps-cell ${valueClass}">${numStr}${growth}</span>`;
   }
 
-  function calcTargetPrice(eps2027, pe2026) {
+
+
+  // ========== v19: 多分頁 watchlists ==========
+  function renderWatchlistTabs() {
+    const container = document.getElementById('watchlistTabs');
+    if (!container) return;
+    // 確保「全部」分頁的 codes 永遠是所有 stocks
+    const allWl = data.watchlists.find(w => w.id === 'all');
+    if (allWl) allWl.codes = data.stocks.map(s => s.code);
+    container.innerHTML = '';
+    data.watchlists.forEach(wl => {
+      const tab = document.createElement('div');
+      tab.className = 'wl-tab' + (wl.id === data.activeWatchlist ? ' active' : '');
+      tab.title = wl.readonly ? '預設分頁不可刪除/改名' : '雙擊改名';
+      const label = document.createElement('span');
+      label.textContent = `${wl.name} (${wl.codes.length})`;
+      label.onclick = () => switchWatchlist(wl.id);
+      tab.appendChild(label);
+      if (!wl.readonly) {
+        // 雙擊改名
+        label.ondblclick = (e) => {
+          e.stopPropagation();
+          const newName = prompt('分頁新名稱：', wl.name);
+          if (newName && newName.trim()) {
+            wl.name = newName.trim();
+            markDirty();
+            renderWatchlistTabs();
+          }
+        };
+        const x = document.createElement('span');
+        x.className = 'close-x';
+        x.textContent = '×';
+        x.title = '刪除此分頁';
+        x.onclick = (e) => {
+          e.stopPropagation();
+          if (!confirm(`刪除分頁「${wl.name}」？股票本身不會刪。`)) return;
+          data.watchlists = data.watchlists.filter(w => w.id !== wl.id);
+          if (data.activeWatchlist === wl.id) data.activeWatchlist = 'all';
+          markDirty();
+          renderWatchlistTabs();
+          renderTable();
+        };
+        tab.appendChild(x);
+      }
+      container.appendChild(tab);
+    });
+    // + 新增分頁
+    const addBtn = document.createElement('button');
+    addBtn.className = 'wl-add';
+    addBtn.textContent = '+ 新增分頁';
+    addBtn.onclick = () => {
+      const name = prompt('新分頁名稱：', '我的觀察');
+      if (!name || !name.trim()) return;
+      const id = 'wl_' + Date.now();
+      data.watchlists.push({ id, name: name.trim(), codes: [] });
+      data.activeWatchlist = id;
+      markDirty();
+      renderWatchlistTabs();
+      renderTable();
+    };
+    container.appendChild(addBtn);
+  }
+
+  function switchWatchlist(id) {
+    data.activeWatchlist = id;
+    renderWatchlistTabs();
+    renderTable();
+  }
+
+  function getActiveWatchlistCodes() {
+    const wl = data.watchlists.find(w => w.id === data.activeWatchlist);
+    return wl ? wl.codes : data.stocks.map(s => s.code);
+  }
+
+  // 將股票加入/移出 分頁（從個股列上點切換鈕）
+  function toggleStockInWatchlist(code, watchlistId) {
+    const wl = data.watchlists.find(w => w.id === watchlistId);
+    if (!wl || wl.readonly) return;
+    const idx = wl.codes.indexOf(code);
+    if (idx === -1) wl.codes.push(code);
+    else wl.codes.splice(idx, 1);
+    markDirty();
+    renderWatchlistTabs();
+    renderTable();
+  }
+
+  // 提供右鍵選單在個股列上：選擇加入哪些分頁
+  function showWatchlistMenu(e, code) {
+    e.preventDefault();
+    e.stopPropagation();
+    const userWls = data.watchlists.filter(w => !w.readonly);
+    if (userWls.length === 0) {
+      alert('還沒有自訂分頁。先按上方「+ 新增分頁」建立。');
+      return;
+    }
+    const lines = userWls.map(wl => `${wl.codes.includes(code) ? '✓' : '☐'} ${wl.name}`).join('\n');
+    const choice = prompt(`輸入分頁編號加入/移出 ${code}：\n\n${userWls.map((wl, i) => `${i+1}. ${wl.codes.includes(code) ? '[移除]' : '[加入]'} ${wl.name}`).join('\n')}`, '');
+    if (!choice) return;
+    const idx = parseInt(choice, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= userWls.length) return;
+    toggleStockInWatchlist(code, userWls[idx].id);
+  }
+
+    function calcTargetPrice(eps2027, pe2026) {
     if (!eps2027 || !pe2026 || pe2026 <= 0) return null;
     return eps2027 * pe2026;
   }
@@ -976,6 +1131,7 @@
       const dragHandle = isCustomSort
         ? `<span class="drag-handle" draggable="true" title="拖拉重排">⋮⋮</span>`
         : `<span class="drag-handle" style="opacity:0.2" title="切到「自訂順序」才能拖拉">⋮⋮</span>`;
+      const wlToggle = `<span class="wl-stock-toggle" onclick="showWatchlistMenu(event, '${s.code}')" title="加入/移出分頁">📑</span>`;
       // 本益比：手動 userPER 優先 → TWSE currentPER → fallback price/2025EPS
       const pe = getEffectivePE(s);
       const targetPrice = calcTargetPrice(eps["2027_est"], pe.value);
@@ -991,14 +1147,14 @@
       const edit = (field) => `class="num editable-cell" data-code="${s.code}" data-field="${field}" ondblclick="startInlineEdit(event)" title="雙擊修改"`;
       row.innerHTML = `
         <td>${dragHandle}</td>
-        <td class="stock-code">${s.code}</td>
+        <td class="stock-code">${s.code}${wlToggle}</td>
         <td class="stock-name">${s.name}</td>
         <td><span class="industry-chip industry-${s.industry}">${s.industry || '—'}</span></td>
         <td class="num" title="股本由 FinMind 抓取，不可手動修改">${fmt(s.capitalYi, {digits:1})}</td>
         <td class="num" title="TTM 4 季滾動毛利率（隨季報更新）">${(s.grossMargin !== null && s.grossMargin !== undefined) ? (s.grossMargin * 100).toFixed(1) + '%' : '<span class="num-muted">—</span>'}</td>
-        <td class="num stock-price" title="股價由每日 15:00 排程自動更新${s.priceUpdated ? '（最後更新：' + s.priceUpdated + '）' : ''}">${fmt(s.price, {digits:2})}</td>
-        <td ${edit('eps_2024')}>${epsCell(eps["2024"], null)}</td>
-        <td ${edit('eps_2025')}>${epsCell(eps["2025"], eps["2024"])}</td>
+        <td class="num stock-price" title="點擊查看 ${s.code} 個股詳細頁"><a href="detail.html?code=${s.code}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(251,191,36,0.3);text-underline-offset:3px;" onclick="event.stopPropagation()">${fmt(s.price, {digits:2})}</a></td>
+        <td class="num" title="2024 EPS 歷史值，由 FinMind 自動帶入，不可手動修改">${epsCell(eps["2024"], null)}</td>
+        <td class="num" title="2025 EPS 歷史值，由 FinMind 自動帶入，不可手動修改">${epsCell(eps["2025"], eps["2024"])}</td>
         <td ${edit('eps_2026_est')}>${epsCell(eps["2026_est"], eps["2025"], true)}</td>
         <td ${edit('eps_2027_est')}>${epsCell(eps["2027_est"], eps["2026_est"], true)}</td>
         <td ${edit('userPER')}>${peDisplay}</td>
@@ -1786,6 +1942,7 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
         showToast('Gist 載入失敗：' + err.message + '（暫用本地）', true);
       }
     }
+    renderWatchlistTabs();
     renderTable();
     updateCloudUI();
     if (!isCloudMode()) checkBackupOnLoad();

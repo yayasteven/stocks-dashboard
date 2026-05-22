@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個股詳細 · 載入中</title>
+<style>
+  :root {
+    --bg: #0f1419; --bg-card: #1a2028; --bg-card-2: #232b35;
+    --border: #2d3641; --text: #e6edf3; --text-dim: #8b95a4; --text-muted: #5a6470;
+    --accent: #3b82f6; --green: #22c55e; --red: #ef4444; --yellow: #eab308;
+    --pink: #ec4899; --gold: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; padding: 20px;
+    min-height: 100vh;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+  .topbar {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .back {
+    background: none; border: 1px solid var(--border); color: var(--text-dim);
+    padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px;
+  }
+  .back:hover { color: var(--text); border-color: var(--accent); }
+  h1 { font-size: 22px; font-weight: 600; }
+  .industry-chip {
+    display: inline-block; padding: 2px 10px; border-radius: 4px;
+    font-size: 12px; background: var(--bg-card-2); color: var(--text-dim);
+    border: 1px solid var(--border); margin-left: 6px;
+  }
+  .metrics {
+    display: flex; gap: 20px; flex-wrap: wrap; padding: 14px 18px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  .metric { display: flex; flex-direction: column; gap: 2px; }
+  .metric .label { font-size: 11px; color: var(--text-dim); }
+  .metric .value { font-size: 18px; font-weight: 600; }
+  .metric .value.gold { color: var(--gold); }
+  .metric .value.pink { color: var(--pink); }
+  .metric .value.green { color: var(--green); }
+  .metric .value.red { color: var(--red); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 18px;
+  }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 {
+    font-size: 14px; color: var(--text-dim); font-weight: 500;
+    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-tabs { display: flex; gap: 6px; }
+  .chart-tab {
+    padding: 3px 10px; background: var(--bg-card-2); border: 1px solid var(--border);
+    color: var(--text-dim); cursor: pointer; border-radius: 4px; font-size: 11px;
+  }
+  .chart-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 280px; color: var(--text-muted); font-size: 12px;
+  }
+  .err { color: var(--red); font-size: 12px; padding: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-dim); font-weight: 500; font-size: 11px; }
+  td.num { text-align: right; }
+  .news-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .news-item:last-child { border-bottom: none; }
+  .news-item .title { font-size: 13px; color: var(--text); margin-bottom: 3px; }
+  .news-item .meta { font-size: 11px; color: var(--text-muted); }
+  .news-item a { color: var(--accent); text-decoration: none; }
+  .news-item a:hover { text-decoration: underline; }
+  .num-pos { color: var(--red); }
+  .num-neg { color: var(--green); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <a href="./" class="back">← 回主畫面</a>
+    <h1><span id="stockCode">—</span> <span id="stockName">—</span><span class="industry-chip" id="industry"></span></h1>
+  </div>
+
+  <div class="metrics" id="metricsBar">
+    <div class="metric"><span class="label">股價</span><span class="value gold" id="mPrice">—</span></div>
+    <div class="metric"><span class="label">當日漲跌</span><span class="value" id="mChange">—</span></div>
+    <div class="metric"><span class="label">本益比 PE</span><span class="value" id="mPE">—</span></div>
+    <div class="metric"><span class="label">毛利率 (TTM)</span><span class="value" id="mMargin">—</span></div>
+    <div class="metric"><span class="label">殖利率</span><span class="value" id="mYield">—</span></div>
+    <div class="metric"><span class="label">股本 (億)</span><span class="value" id="mCapital">—</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="card wide">
+      <h2>
+        股價走勢
+        <span class="chart-tabs">
+          <span class="chart-tab" data-range="90">3 月</span>
+          <span class="chart-tab active" data-range="365">1 年</span>
+          <span class="chart-tab" data-range="1825">5 年</span>
+        </span>
+      </h2>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+    </div>
+
+    <div class="card wide">
+      <h2>月營收與年增率（近 24 月）</h2>
+      <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>三大法人買賣超（近 30 日）</h2>
+      <div class="chart-wrap" style="height:240px;"><canvas id="instChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>季度 EPS（近 8 季）</h2>
+      <div class="chart-wrap" style="height:240px;"><canvas id="epsChart"></canvas></div>
+    </div>
+
+    <div class="card wide">
+      <h2>本益比河流圖（5 年區間）</h2>
+      <div class="chart-wrap"><canvas id="perChart"></canvas></div>
+      <div id="perStats" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+    </div>
+
+    <div class="card">
+      <h2>歷年股利政策</h2>
+      <div id="dividends" class="loading">載入中...</div>
+    </div>
+
+    <div class="card">
+      <h2>近期新聞</h2>
+      <div id="news" class="loading">載入中...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== 基本設定 =====
+  const params = new URLSearchParams(location.search);
+  const CODE = params.get('code') || '';
+  const FINMIND_BASE = 'https://api.finmindtrade.com/api/v4/data';
+
+  // 從 localStorage 拿 FinMind token（與主頁共用）
+  // 主頁的 token 在 data.js 的 meta.finmindToken 或 localStorage
+  function getFinmindToken() {
+    // 試 localStorage 雲端設定（不是 finmind token，但 main page 沒在 localStorage 存 finmind token）
+    // 直接從 main page 載入 data.js 取 token
+    return window.FINMIND_TOKEN || '';
+  }
+
+  // 載入 data.js 取得 token 與 stock 基本資訊
+  function loadConfig() {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'data.js';
+      script.onload = () => {
+        if (window.STOCK_DATA && window.STOCK_DATA.meta) {
+          window.FINMIND_TOKEN = window.STOCK_DATA.meta.finmindToken || '';
+          resolve(window.STOCK_DATA);
+        } else {
+          // 如果是雲端模式，data.js 可能不會載到 STOCK_DATA
+          // 嘗試從雲端 Gist 拉
+          resolve(null);
+        }
+      };
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  }
+
+  async function loadFromGist() {
+    try {
+      const cfg = JSON.parse(localStorage.getItem('gistCloudConfig') || 'null');
+      if (!cfg) return null;
+      const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+        headers: { 'Authorization': `Bearer ${cfg.pat}`, 'Accept': 'application/vnd.github+json' }
+      });
+      if (!res.ok) return null;
+      const json = await res.json();
+      const filename = cfg.filename || 'stocks-data.json';
+      const file = json.files[filename];
+      if (!file || !file.content) return null;
+      const parsed = JSON.parse(file.content);
+      window.FINMIND_TOKEN = parsed.meta?.finmindToken || window.FINMIND_TOKEN;
+      return parsed;
+    } catch (e) {
+      console.error('Gist 載入失敗', e);
+      return null;
+    }
+  }
+
+  async function finmindFetch(dataset, dataId, startDate, endDate) {
+    const token = getFinmindToken();
+    if (!token) throw new Error('未設定 FinMind Token');
+    const params = new URLSearchParams({ dataset, data_id: dataId, token });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const res = await fetch(`${FINMIND_BASE}?${params}`);
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const json = await res.json();
+    if (json.status !== 200) throw new Error(json.msg || 'API failed');
+    return json.data || [];
+  }
+
+  function isoDaysAgo(days) {
+    return new Date(Date.now() - days*86400*1000).toISOString().slice(0,10);
+  }
+  function today() { return new Date().toISOString().slice(0,10); }
+  function fmtPct(v, opts={}) {
+    if (v === null || v === undefined || isNaN(v)) return '—';
+    const cls = v >= 0 ? 'num-pos' : 'num-neg';
+    const sign = v >= 0 ? '+' : '';
+    return `<span class="${cls}">${sign}${(v*100).toFixed(1)}%</span>`;
+  }
+
+  // ===== Chart.js 共用設定 =====
+  Chart.defaults.color = '#8b95a4';
+  Chart.defaults.borderColor = '#2d3641';
+  Chart.defaults.font.family = '-apple-system, "Segoe UI", sans-serif';
+
+  // ===== 個股基本資訊 =====
+  function renderHeader(stockMeta, info) {
+    document.title = `${CODE} ${info?.stock_name || ''} · 個股詳細`;
+    document.getElementById('stockCode').textContent = CODE;
+    document.getElementById('stockName').textContent = info?.stock_name || stockMeta?.name || '';
+    document.getElementById('industry').textContent = info?.industry_category || stockMeta?.industry || '';
+    if (stockMeta) {
+      const m = document.getElementById('mPrice');
+      m.textContent = stockMeta.price ? stockMeta.price.toFixed(2) : '—';
+      document.getElementById('mPE').textContent = stockMeta.currentPER ? stockMeta.currentPER.toFixed(1) : '—';
+      document.getElementById('mMargin').textContent = stockMeta.grossMargin ? (stockMeta.grossMargin*100).toFixed(1)+'%' : '—';
+      document.getElementById('mCapital').textContent = stockMeta.capitalYi ? stockMeta.capitalYi.toFixed(1) : '—';
+    }
+  }
+
+  // ===== 股價 K 線 =====
+  let priceChart = null;
+  async function renderPriceChart(days) {
+    try {
+      const prices = await finmindFetch('TaiwanStockPrice', CODE, isoDaysAgo(days), today());
+      const sorted = prices.sort((a,b) => a.date.localeCompare(b.date));
+      const labels = sorted.map(p => p.date);
+      const closes = sorted.map(p => p.close);
+
+      // 計算當日漲跌
+      if (sorted.length >= 2) {
+        const last = sorted[sorted.length - 1], prev = sorted[sorted.length - 2];
+        const chg = last.close - prev.close;
+        const chgPct = chg / prev.close;
+        const el = document.getElementById('mChange');
+        el.innerHTML = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)} (${(chgPct*100).toFixed(2)}%)`;
+        el.className = 'value ' + (chg >= 0 ? 'red' : 'green');
+      }
+
+      if (priceChart) priceChart.destroy();
+      const ctx = document.getElementById('priceChart').getContext('2d');
+      priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '收盤價',
+            data: closes,
+            borderColor: '#fbbf24',
+            backgroundColor: 'rgba(251,191,36,0.1)',
+            borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 8, font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    } catch (e) {
+      document.getElementById('priceChart').replaceWith(Object.assign(document.createElement('div'), {className:'err', textContent:'股價載入失敗: '+e.message}));
+    }
+  }
+  document.querySelectorAll('.chart-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderPriceChart(parseInt(tab.dataset.range));
+    };
+  });
+
+  // ===== 月營收 =====
+  async function renderRevenueChart() {
+    try {
+      const rev = await finmindFetch('TaiwanStockMonthRevenue', CODE, isoDaysAgo(800), today());
+      const sorted = rev.sort((a,b) => a.date.localeCompare(b.date)).slice(-24);
+      const labels = sorted.map(r => `${r.revenue_year}-${String(r.revenue_month).padStart(2,'0')}`);
+      const values = sorted.map(r => r.revenue / 100_000_000); // 換成億
+
+      // 算 YoY
+      const yoyData = sorted.map(r => {
+        const prev = sorted.find(x => x.revenue_year === r.revenue_year - 1 && x.revenue_month === r.revenue_month);
+        if (!prev || prev.revenue <= 0) return null;
+        return ((r.revenue / prev.revenue - 1) * 100);
+      });
+
+      const ctx = document.getElementById('revenueChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: '月營收（億）', data: values, backgroundColor: 'rgba(59,130,246,0.6)', yAxisID: 'y' },
+            { label: 'YoY %', data: yoyData, type: 'line', borderColor: '#ec4899', backgroundColor: 'transparent', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 12, font: { size: 10 } } },
+            y: { position: 'left', title: { display: true, text: '億', font: { size: 10 } } },
+            y1: { position: 'right', title: { display: true, text: 'YoY %', font: { size: 10 } }, grid: { drawOnChartArea: false } }
+          }
+        }
+      });
+    } catch (e) {
+      document.getElementById('revenueChart').replaceWith(Object.assign(document.createElement('div'), {className:'err', textContent:'月營收載入失敗: '+e.message}));
+    }
+  }
+
+  // ===== 三大法人 =====
+  async function renderInstitutional() {
+    try {
+      const inv = await finmindFetch('TaiwanStockInstitutionalInvestorsBuySell', CODE, isoDaysAgo(40), today());
+      const sorted = inv.sort((a,b) => a.date.localeCompare(b.date)).slice(-30);
+      // 三大法人 by name
+      const byDate = {};
+      sorted.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = {foreign:0, trust:0, dealer:0};
+        const net = r.buy - r.sell;
+        if (r.name && r.name.includes('Foreign')) byDate[r.date].foreign += net;
+        else if (r.name && r.name.includes('Investment_Trust')) byDate[r.date].trust += net;
+        else if (r.name && (r.name.includes('Dealer') || r.name.includes('Self'))) byDate[r.date].dealer += net;
+      });
+      const dates = Object.keys(byDate).sort();
+      const ctx = document.getElementById('instChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: dates,
+          datasets: [
+            { label: '外資', data: dates.map(d => byDate[d].foreign/1000), backgroundColor: 'rgba(59,130,246,0.7)' },
+            { label: '投信', data: dates.map(d => byDate[d].trust/1000), backgroundColor: 'rgba(236,72,153,0.7)' },
+            { label: '自營商', data: dates.map(d => byDate[d].dealer/1000), backgroundColor: 'rgba(251,191,36,0.7)' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 8, font: { size: 9 } }, stacked: true },
+            y: { stacked: true, title: { display: true, text: '張', font: { size: 10 } } }
+          }
+        }
+      });
+    } catch (e) {
+      document.getElementById('instChart').replaceWith(Object.assign(document.createElement('div'), {className:'err', textContent:'三大法人載入失敗: '+e.message}));
+    }
+  }
+
+  // ===== 季度 EPS =====
+  async function renderEpsChart() {
+    try {
+      const fs = await finmindFetch('TaiwanStockFinancialStatements', CODE, isoDaysAgo(800), today());
+      const epsRows = fs.filter(r => /^(EPS|eps|BasicEPS)$/.test(r.type));
+      const sorted = epsRows.sort((a,b) => a.date.localeCompare(b.date)).slice(-8);
+      const labels = sorted.map(r => {
+        const y = r.date.slice(0,4), m = parseInt(r.date.slice(5,7),10);
+        const q = m<=3?'Q1' : m<=6?'Q2' : m<=9?'Q3' : 'Q4';
+        return `${y} ${q}`;
+      });
+      const values = sorted.map(r => parseFloat(r.value));
+      const ctx = document.getElementById('epsChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'EPS', data: values,
+            backgroundColor: values.map(v => v >= 0 ? 'rgba(239,68,68,0.7)' : 'rgba(34,197,94,0.7)')
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { title: { display: true, text: 'NTD/股', font: { size: 10 } } }
+          }
+        }
+      });
+    } catch (e) {
+      document.getElementById('epsChart').replaceWith(Object.assign(document.createElement('div'), {className:'err', textContent:'EPS 載入失敗: '+e.message}));
+    }
+  }
+
+  // ===== 本益比河流圖 =====
+  async function renderPerChart() {
+    try {
+      const per = await finmindFetch('TaiwanStockPER', CODE, isoDaysAgo(1825), today());
+      const sorted = per.sort((a,b) => a.date.localeCompare(b.date));
+      const labels = sorted.map(p => p.date);
+      const values = sorted.map(p => p.PER);
+      const validVals = values.filter(v => v && v > 0 && v < 1000);
+      validVals.sort((a,b) => a-b);
+      const min = validVals[0], max = validVals[validVals.length-1];
+      const median = validVals[Math.floor(validVals.length/2)];
+      const p25 = validVals[Math.floor(validVals.length*0.25)];
+      const p75 = validVals[Math.floor(validVals.length*0.75)];
+      const current = validVals[validVals.length-1] || values[values.length-1];
+      const percentile = validVals.filter(v => v <= current).length / validVals.length * 100;
+
+      const ctx = document.getElementById('perChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: 'PE', data: values, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.1 },
+            { label: '中位數', data: labels.map(_ => median), borderColor: '#fbbf24', borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } },
+          scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 9 } } }, y: { font: { size: 10 } } }
+        }
+      });
+      document.getElementById('perStats').innerHTML =
+        `<strong>目前 ${current?.toFixed(1) || '—'}</strong> · 5 年最低 ${min?.toFixed(1)} / 中位 ${median?.toFixed(1)} / 最高 ${max?.toFixed(1)} · ` +
+        `<strong style="color:${percentile > 80 ? 'var(--red)' : percentile < 20 ? 'var(--green)' : 'var(--accent)'}">位於 ${percentile.toFixed(0)}% 分位</strong>`;
+    } catch (e) {
+      document.getElementById('perChart').replaceWith(Object.assign(document.createElement('div'), {className:'err', textContent:'PE 河流圖載入失敗: '+e.message}));
+    }
+  }
+
+  // ===== 殖利率 =====
+  async function renderYield() {
+    try {
+      const per = await finmindFetch('TaiwanStockPER', CODE, isoDaysAgo(30), today());
+      const sorted = per.sort((a,b) => b.date.localeCompare(a.date));
+      if (sorted.length && sorted[0].dividend_yield) {
+        document.getElementById('mYield').textContent = sorted[0].dividend_yield.toFixed(2) + '%';
+      }
+    } catch (e) {}
+  }
+
+  // ===== 股利 =====
+  async function renderDividends() {
+    try {
+      const div = await finmindFetch('TaiwanStockDividend', CODE, isoDaysAgo(2000), today());
+      const sorted = div.sort((a,b) => b.date.localeCompare(a.date)).slice(0, 5);
+      if (sorted.length === 0) {
+        document.getElementById('dividends').innerHTML = '<div class="loading">無資料</div>';
+        return;
+      }
+      let html = '<table><thead><tr><th>年度</th><th class="num">現金股利</th><th class="num">股票股利</th></tr></thead><tbody>';
+      sorted.forEach(d => {
+        const year = d.date.slice(0,4);
+        const cash = d.CashEarningsDistribution || d.cash_dividend || 0;
+        const stock = d.StockEarningsDistribution || d.stock_dividend || 0;
+        html += `<tr><td>${year}</td><td class="num">${cash.toFixed(2)}</td><td class="num">${stock.toFixed(2)}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      document.getElementById('dividends').innerHTML = html;
+    } catch (e) {
+      document.getElementById('dividends').innerHTML = '<div class="err">股利載入失敗: '+e.message+'</div>';
+    }
+  }
+
+  // ===== 新聞 =====
+  async function renderNews() {
+    try {
+      const news = await finmindFetch('TaiwanStockNews', CODE, isoDaysAgo(30), today());
+      const sorted = news.sort((a,b) => b.date.localeCompare(a.date)).slice(0, 8);
+      if (sorted.length === 0) {
+        document.getElementById('news').innerHTML = '<div class="loading">近 30 日無新聞</div>';
+        return;
+      }
+      let html = '';
+      sorted.forEach(n => {
+        const date = n.date || '';
+        const title = n.title || n.description || '(無標題)';
+        const url = n.link || n.url || '';
+        const source = n.source || '';
+        html += `<div class="news-item">
+          ${url ? `<a href="${url}" target="_blank"><div class="title">${title}</div></a>` : `<div class="title">${title}</div>`}
+          <div class="meta">${date} · ${source}</div>
+        </div>`;
+      });
+      document.getElementById('news').innerHTML = html;
+    } catch (e) {
+      document.getElementById('news').innerHTML = '<div class="err">新聞載入失敗（可能不在免費版）: '+e.message+'</div>';
+    }
+  }
+
+  // ===== Init =====
+  async function init() {
+    if (!CODE) {
+      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red);">缺少股票代號參數。請從主畫面點股價進入。</div>';
+      return;
+    }
+    // 先試本地 data.js，再試 Gist
+    let dataObj = await loadConfig();
+    if (!dataObj || !dataObj.meta?.finmindToken) {
+      dataObj = await loadFromGist();
+    }
+    if (!dataObj) {
+      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red);">無法載入設定。請先回主畫面設定雲端 + FinMind Token。</div>';
+      return;
+    }
+    const stockMeta = dataObj.stocks.find(s => s.code === CODE);
+
+    // 抓 stock info
+    let info = null;
+    try {
+      const arr = await finmindFetch('TaiwanStockInfo', CODE);
+      info = arr[0];
+    } catch (e) { console.warn('TaiwanStockInfo 失敗', e); }
+
+    renderHeader(stockMeta, info);
+    renderPriceChart(365);
+    renderRevenueChart();
+    renderInstitutional();
+    renderEpsChart();
+    renderPerChart();
+    renderYield();
+    renderDividends();
+    renderNews();
+  }
+  init();
+</script>
+</body>
+</html>
