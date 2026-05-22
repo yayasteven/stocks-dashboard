@@ -79,6 +79,8 @@
   }
   /* 手機橫向捲動時，代號欄黏在最左邊 */
   @media (max-width: 900px) {
+    /* 強制表格寬度，才會超出容器觸發橫向捲動 */
+    .table-wrap table { min-width: 1500px; }
     table th:nth-child(2), table td:nth-child(2) {
       position: sticky; left: 0; z-index: 5;
       background: var(--bg-card);
