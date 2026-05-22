@@ -461,6 +461,7 @@
       <button class="btn" id="syncBtn" onclick="syncToGist()" style="display:none">📤 同步</button>
       <button class="btn" onclick="exportData()">⬇ 匯出</button>
       <button class="btn" onclick="document.getElementById('importFile').click()">⬆ 匯入</button>
+      <button class="btn" onclick="forceReloadLatest()" title="繞過快取抓最新版（不會清 localStorage 設定）">🔄 抓最新</button>
       <button class="btn" id="themeToggleBtn" onclick="toggleTheme()" title="切換明亮/暗黑">🌙</button>
       <button class="btn" onclick="openSettingsModal()" title="雲端設定">⚙</button>
       <input type="file" id="importFile" accept=".js,.json" style="display:none" onchange="importData(event)">
@@ -638,6 +639,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn danger" onclick="clearCloudConfig()" id="clearCloudBtn" style="display:none">移除設定（改回離線）</button>
+      <button class="btn" onclick="copySetupLink()" id="copyLinkBtn" style="display:none" title="產生啟動連結，加入書籤後永不重設">📋 複製啟動連結</button>
       <button class="btn" onclick="testCloudConnection()">🔌 測試連線</button>
       <button class="btn primary" onclick="saveCloudConfig()">儲存</button>
     </div>
@@ -1772,6 +1774,22 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     }
   }
 
+  // ========== v24: 永久儲存 + 強制抓最新 ==========
+  // 請 Chrome 把 localStorage 標為「重要」，避免空間壓力時被清
+  if ('storage' in navigator && 'persist' in navigator.storage) {
+    navigator.storage.persist().then(granted => {
+      console.log('[v24] 永久儲存:', granted ? '✓ 已啟用' : '⚠ 未授權（仍會在你手動清資料時被清）');
+    }).catch(() => {});
+  }
+
+  // 強制繞過 HTTP cache 抓最新 HTML / data.js，但保留 localStorage 設定
+  function forceReloadLatest() {
+    if (!confirm('將從伺服器抓最新版本（你的 PAT / Gist ID 等設定會保留）。確定？')) return;
+    // 加上一個 cache-buster query string，讓瀏覽器當成不同 URL，繞開所有 HTTP cache
+    const cleanUrl = location.pathname.split('?')[0];
+    location.replace(cleanUrl + '?_cb=' + Date.now());
+  }
+
   // ========== v22: 主題切換 ==========
   function toggleTheme() {
     const curr = document.documentElement.getAttribute('data-theme') || 'light';
@@ -1917,8 +1935,42 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     document.getElementById('settingsGistFile').value = cfg?.filename || 'stocks-data.json';
     document.getElementById('settingsStatus').textContent = '';
     document.getElementById('clearCloudBtn').style.display = cfg ? '' : 'none';
+    document.getElementById('copyLinkBtn').style.display = cfg ? '' : 'none';
     document.getElementById('settingsModal').classList.add('show');
   }
+
+  // v23: 啟動連結 — 把設定編碼進 URL hash，使用者書籤起來就永不重設
+  function copySetupLink() {
+    const cfg = getCloudConfig();
+    if (!cfg) { showToast('還沒儲存設定', true); return; }
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+    const url = `${location.origin}${location.pathname}#cfg=${encoded}`;
+    navigator.clipboard.writeText(url).then(() => {
+      const statusEl = document.getElementById('settingsStatus');
+      statusEl.innerHTML = '<span style="color:var(--green)">✓ 啟動連結已複製。<br>加進瀏覽器書籤 / iPhone 主畫面，之後點書籤就自動套用設定。</span>';
+    }).catch(err => {
+      // Fallback: 在 status 區直接顯示讓使用者複製
+      const statusEl = document.getElementById('settingsStatus');
+      statusEl.innerHTML = `<span style="color:var(--text-dim)">複製失敗，請手動複製這串：</span><br><textarea style="width:100%;height:60px;font-size:10px;font-family:monospace;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;" onclick="this.select()">${url}</textarea>`;
+    });
+  }
+
+  // v23: 開頁時偵測 hash 啟動連結
+  (function detectSetupHash() {
+    const m = location.hash.match(/#cfg=([A-Za-z0-9+/=]+)/);
+    if (!m) return;
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+      if (decoded.pat && decoded.gistId) {
+        setCloudConfig(decoded);
+        // 清掉網址裡的 hash（不重新整理）
+        history.replaceState(null, '', location.pathname);
+        console.log('[v23] 已從 URL hash 套用雲端設定');
+      }
+    } catch (e) {
+      console.warn('[v23] hash 解析失敗', e);
+    }
+  })();
   function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('show'); }
 
   async function testCloudConnection() {
