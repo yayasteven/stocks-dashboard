@@ -17,6 +17,22 @@
   const saved = localStorage.getItem('dashboardTheme');
   if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 })();
+
+// v26: 偵測到 SW 在控制頁面就立刻清乾淨（avoid Chrome 老 SW 卡死）
+(function(){
+  if (!('serviceWorker' in navigator)) return;
+  if (!navigator.serviceWorker.controller) return; // 沒被 SW 控制就跳過
+  if (sessionStorage.getItem('swNukedV26')) return; // 已清過本 session 不重複
+  sessionStorage.setItem('swNukedV26', '1');
+  Promise.all([
+    navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(r => r.unregister()))),
+    'caches' in window ? caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))) : Promise.resolve()
+  ]).then(() => {
+    // 用 cache-buster reload，徹底繞過 HTTP cache
+    location.replace(location.pathname + '?_swkilled=' + Date.now());
+  }).catch(() => location.reload());
+})();
+
 // v16: 偵測到舊 SW 就主動清除 + reload 一次，sessionStorage 防無窮迴圈
 (function () {
   if (!('serviceWorker' in navigator)) return;
@@ -448,7 +464,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v25</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v26</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
