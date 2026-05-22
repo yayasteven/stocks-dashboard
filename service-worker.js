@@ -1,42 +1,24 @@
-// 個股追蹤 PWA Service Worker
-// v2: 改為網路優先（network-first），確保更新即時可見
-const CACHE_NAME = 'stocks-dashboard-v2';
-const ASSETS = ['./', './index.html', './manifest.json'];
+// v15 kill switch: 新 SW 啟動後立即 unregister 自己 + 清光所有快取 + 強制 reload 控制中的頁面
+// 目的：清除卡住的舊 SW 緩存，讓使用者看到最新版本
 
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).catch(() => {})
-  );
-  self.skipWaiting();
+self.addEventListener('install', () => {
+  self.skipWaiting(); // 立即接管，不等舊 SW 退場
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    // 1. 清光所有 cache
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    // 2. unregister 自己
+    await self.registration.unregister();
+    // 3. 強制 reload 所有正在用此 SW 的頁面
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach(c => {
+      try { c.navigate(c.url); } catch {}
+    });
+  })());
 });
 
-self.addEventListener('fetch', e => {
-  const url = e.request.url;
-  // 動態 API 直接讓瀏覽器處理，不快取
-  if (url.includes('api.github.com') ||
-      url.includes('api.finmindtrade.com') ||
-      url.includes('gist.githubusercontent.com')) {
-    return;
-  }
-  // 網路優先：每次先試網路，網路失敗才用快取
-  e.respondWith(
-    fetch(e.request).then(resp => {
-      if (resp.ok && e.request.method === 'GET') {
-        const respClone = resp.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, respClone));
-      }
-      return resp;
-    }).catch(() =>
-      caches.match(e.request).then(r => r || caches.match('./index.html'))
-    )
-  );
-});
+// fetch 事件直接 passthrough，不快取任何東西
+self.addEventListener('fetch', () => {});

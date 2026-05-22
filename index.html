@@ -11,6 +11,24 @@
 <link rel="icon" type="image/svg+xml" href="icon-192.svg">
 <link rel="apple-touch-icon" href="icon-192.svg">
 <title>老爸個股追蹤 · PCB / CCL 供應鏈</title>
+<script>
+// v15 緊急清理：先 unregister 所有舊 service worker + 清快取，再讓頁面正常載入
+(function emergencyCleanup() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    if (regs.length === 0) return;
+    // 強制檢查每個 SW 的版本（透過 update()），讓新 SW 接手
+    Promise.all(regs.map(r => r.update().catch(() => null))).then(() => {
+      // 如果頁面被舊 SW 控制，重新載入一次讓新 SW 接手
+      if (navigator.serviceWorker.controller && !sessionStorage.getItem('swReloaded')) {
+        sessionStorage.setItem('swReloaded', '1');
+        console.log('[v15] 觸發 SW 更新，重新載入...');
+        setTimeout(() => window.location.reload(), 100);
+      }
+    });
+  }).catch(() => {});
+})();
+</script>
 <style>
   :root {
     --bg: #0f1419;
