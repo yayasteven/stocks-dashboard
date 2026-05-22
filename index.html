@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="個股追蹤">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon-192.svg">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<title>老爸個股追蹤 · PCB / CCL 供應鏈</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --bg-card: #1a2028;
+    --bg-card-2: #232b35;
+    --border: #2d3641;
+    --text: #e6edf3;
+    --text-dim: #8b95a4;
+    --text-muted: #5a6470;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    font-size: 14px;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  .container { max-width: 1600px; margin: 0 auto; }
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 12px;
+  }
+  .header h1 { font-size: 22px; font-weight: 600; }
+  .header h1 span { color: var(--text-dim); font-weight: 400; font-size: 14px; margin-left: 8px; }
+  .header .meta { color: var(--text-dim); font-size: 12px; margin-top: 4px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    padding: 8px 14px; border: 1px solid var(--border); background: var(--bg-card);
+    color: var(--text); border-radius: 6px; cursor: pointer; font-size: 13px;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--bg-card-2); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn.danger { color: var(--red); }
+  .btn.danger:hover { background: rgba(239,68,68,0.1); border-color: var(--red); }
+
+  /* 摘要卡 */
+  .summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin-bottom: 24px;
+  }
+  .summary-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 18px;
+  }
+  .summary-card .label { color: var(--text-dim); font-size: 12px; margin-bottom: 4px; }
+  .summary-card .value { font-size: 22px; font-weight: 600; }
+
+  /* 主表格 */
+  .table-wrap {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .toolbar {
+    display: flex; gap: 8px; padding: 12px 16px;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap; align-items: center;
+  }
+  .toolbar select, .toolbar input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 10px; border-radius: 5px; font-size: 13px;
+  }
+  .toolbar input { flex: 1; min-width: 120px; max-width: 280px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: var(--bg-card-2); }
+  th {
+    text-align: left; padding: 10px 12px; font-weight: 500; color: var(--text-dim);
+    border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer;
+    user-select: none; font-size: 12px;
+  }
+  th:hover { color: var(--text); }
+  th.num, td.num { text-align: right; }
+  th.sortable::after { content: " ↕"; opacity: 0.3; font-size: 10px; }
+  th.sort-asc::after { content: " ↑"; opacity: 1; color: var(--accent); }
+  th.sort-desc::after { content: " ↓"; opacity: 1; color: var(--accent); }
+  td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tr.stock-row { cursor: pointer; transition: background 0.1s; }
+  tr.stock-row:hover { background: rgba(59,130,246,0.05); }
+  tr.detail-row td { padding: 0; background: var(--bg); }
+  .stock-code { color: var(--accent); font-weight: 600; }
+  .stock-name { font-weight: 500; }
+  .industry-chip {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; background: var(--bg-card-2); color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .industry-CCL { color: #60a5fa; border-color: #1e3a8a; background: rgba(59,130,246,0.1); }
+  .industry-銅箔 { color: #fb923c; border-color: #7c2d12; background: rgba(249,115,22,0.1); }
+  .industry-玻纖 { color: #c084fc; border-color: #581c87; background: rgba(168,85,247,0.1); }
+  .industry-化材 { color: #4ade80; border-color: #14532d; background: rgba(34,197,94,0.1); }
+  .industry-PCB { color: #facc15; border-color: #713f12; background: rgba(234,179,8,0.1); }
+  .industry-電子紙 { color: #2dd4bf; border-color: #134e4a; background: rgba(20,184,166,0.1); }
+
+  /* 台股慣例：紅漲綠跌 */
+  .num-pos { color: var(--red); }
+  .num-neg { color: var(--green); }
+  .num-muted { color: var(--text-muted); }
+  /* 預估/預測值 — 亮綠 */
+  .eps-predicted { color: #4ade80; }
+  .eps-predicted-bold { color: #4ade80; font-weight: 600; }
+  /* 明年目標價 — 桃紅 */
+  .target-price { color: #ec4899; font-weight: 600; }
+  /* 股價 — 金黃 */
+  .stock-price { color: #fbbf24; font-weight: 500; }
+
+  /* Inline 編輯 */
+  .editable-cell { position: relative; transition: background 0.1s; }
+  .editable-cell:hover {
+    background: rgba(59,130,246,0.08);
+    cursor: cell;
+    box-shadow: inset 0 0 0 1px rgba(59,130,246,0.3);
+  }
+  .editable-cell::before {
+    content: ''; position: absolute; top: 4px; right: 4px;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .editable-cell:hover::before { opacity: 0.5; }
+  .inline-edit-input {
+    width: 100%; background: var(--bg);
+    border: 1.5px solid var(--accent); color: var(--text);
+    padding: 6px 8px; border-radius: 4px;
+    font-size: 13px; font-family: inherit;
+    outline: none; box-sizing: border-box;
+  }
+  .inline-edit-input.num { text-align: right; }
+  .pe-overridden {
+    position: relative; font-style: italic;
+  }
+  .pe-overridden::after {
+    content: '*'; color: #fbbf24; margin-left: 2px;
+    font-size: 11px; vertical-align: super; font-style: normal;
+  }
+
+  /* 距離橫槓 */
+  .distance-cell { min-width: 100px; padding: 6px 8px; }
+  .distance-bar {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(to right,
+      rgba(34,197,94,0.35) 0%,
+      rgba(255,255,255,0.06) 50%,
+      rgba(239,68,68,0.35) 100%);
+    border-radius: 3px;
+    margin: 2px 0 4px;
+  }
+  .distance-bar::before {
+    content: ''; position: absolute;
+    left: 50%; top: -3px; bottom: -3px;
+    width: 1px; background: var(--text-muted); opacity: 0.5;
+  }
+  .distance-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 4px rgba(0,0,0,0.6);
+  }
+  .distance-dot-current { background: white; z-index: 2; border: 1px solid rgba(0,0,0,0.3); }
+  .distance-dot-target { background: #ec4899; z-index: 3; }
+  .distance-label { font-size: 10px; text-align: center; font-weight: 500; }
+
+  /* 操作建議 chip */
+  .signal-chip {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .signal-buy { background: rgba(239,68,68,0.18); color: #ef4444; border: 1px solid rgba(239,68,68,0.5); }
+  .signal-hold { background: rgba(234,179,8,0.15); color: #eab308; border: 1px solid rgba(234,179,8,0.4); }
+  .signal-sell { background: rgba(34,197,94,0.18); color: #22c55e; border: 1px solid rgba(34,197,94,0.5); }
+
+  /* 月營收 hover 提示框 */
+  .monthly-trigger {
+    cursor: help;
+    border-bottom: 1px dotted var(--text-muted);
+  }
+  #globalTooltip {
+    position: fixed; display: none; z-index: 200;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px;
+    font-size: 10px; box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+    pointer-events: none; width: 440px;
+  }
+  #globalTooltip table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  #globalTooltip th, #globalTooltip td {
+    padding: 2px 1px; text-align: center; white-space: nowrap;
+    color: var(--text); font-size: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  #globalTooltip th { color: var(--text-dim); font-weight: 500; font-size: 9px; }
+  #globalTooltip th:first-child, #globalTooltip td:first-child {
+    text-align: left; font-weight: 500; color: var(--text-dim);
+    background: rgba(255,255,255,0.04); width: 44px; padding-left: 6px;
+  }
+  #globalTooltip .row-prior td { color: var(--text-muted); }
+  #globalTooltip .tooltip-title { font-size: 11px; }
+
+  /* EPS 年增率小字 */
+  .eps-cell { white-space: nowrap; }
+  .eps-growth {
+    font-size: 9px;
+    margin-left: 3px;
+    font-weight: 500;
+    vertical-align: super;
+    letter-spacing: -0.2px;
+  }
+
+  /* 拖拉手把 */
+  .drag-handle {
+    cursor: grab; color: var(--text-muted); font-size: 16px;
+    user-select: none; padding: 0 6px; display: inline-block;
+    line-height: 1;
+  }
+  .drag-handle:hover { color: var(--text); }
+  .drag-handle:active { cursor: grabbing; }
+  tr.stock-row.dragging { opacity: 0.35; }
+  tr.stock-row.drag-over-top { box-shadow: inset 0 2px 0 var(--accent); }
+  tr.stock-row.drag-over-bottom { box-shadow: inset 0 -2px 0 var(--accent); }
+
+  /* 詳細展開區 */
+  .detail-panel { padding: 16px 20px; background: var(--bg); border-top: 2px solid var(--accent); }
+  .detail-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .detail-section h3 {
+    font-size: 12px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 500;
+  }
+  .detail-table { font-size: 12px; }
+  .detail-table td { padding: 4px 8px; border: none; }
+  .detail-table tr:nth-child(odd) { background: var(--bg-card); }
+  .detail-actions { margin-top: 14px; display: flex; gap: 8px; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    width: 90%; max-width: 720px; max-height: 88vh; overflow-y: auto;
+  }
+  .modal-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-header h2 { font-size: 16px; font-weight: 600; }
+  .modal-header .close {
+    background: none; border: none; color: var(--text-dim); font-size: 20px;
+    cursor: pointer; padding: 0 4px;
+  }
+  .modal-body { padding: 20px; }
+  .modal-footer {
+    padding: 14px 20px; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .form-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .form-field { display: flex; flex-direction: column; }
+  .form-field label {
+    font-size: 11px; color: var(--text-dim); margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .form-field input, .form-field select, .form-field textarea {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 10px; border-radius: 5px; font-size: 13px;
+    font-family: inherit;
+  }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .section-divider {
+    grid-column: 1 / -1; margin: 8px 0 -4px 0;
+    font-size: 12px; color: var(--text-dim); font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .section-divider::after {
+    content: ""; display: block; height: 1px; background: var(--border); margin-top: 4px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; padding: 12px 18px;
+    background: var(--bg-card); border: 1px solid var(--green); border-radius: 6px;
+    color: var(--text); z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { border-color: var(--red); }
+
+  /* Footer */
+  .footer { margin-top: 32px; padding: 16px; text-align: center;
+    color: var(--text-muted); font-size: 12px; }
+  .footer code { background: var(--bg-card); padding: 2px 6px; border-radius: 3px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div>
+      <h1>老爸個股追蹤 <span>· PCB / CCL 供應鏈</span></h1>
+      <div class="meta">
+        上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
+        <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
+        <span id="unsavedIndicator" style="display:none;color:#fbbf24;margin-left:10px;">● 未同步</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" onclick="openAddModal()">＋ 新增個股</button>
+      <button class="btn" id="pullBtn" onclick="pullFromGist()" style="display:none">📥 拉取</button>
+      <button class="btn" id="syncBtn" onclick="syncToGist()" style="display:none">📤 同步</button>
+      <button class="btn" onclick="exportData()">⬇ 匯出</button>
+      <button class="btn" onclick="document.getElementById('importFile').click()">⬆ 匯入</button>
+      <button class="btn" onclick="openSettingsModal()" title="雲端設定">⚙</button>
+      <input type="file" id="importFile" accept=".js,.json" style="display:none" onchange="importData(event)">
+    </div>
+  </div>
+
+  <div class="summary" id="summaryCards"></div>
+
+  <div class="table-wrap">
+    <div class="toolbar">
+      <input type="search" id="searchInput" placeholder="搜尋代號 / 名稱..." oninput="renderTable()">
+      <select id="industryFilter" onchange="renderTable()">
+        <option value="">全部產業</option>
+      </select>
+      <select id="sortField" onchange="renderTable()">
+        <option value="custom">自訂順序（可拖拉）</option>
+        <option value="code">依代號排序</option>
+        <option value="industry">依產業排序</option>
+        <option value="latestMonthYoy">依最新月增率排序</option>
+        <option value="eps2026">依 2026E EPS 排序</option>
+        <option value="pe">依本益比排序</option>
+        <option value="targetPrice">依目標價排序</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th title="拖拉重排"></th>
+          <th>代號</th>
+          <th>名稱</th>
+          <th>產業</th>
+          <th class="num">股本(億)</th>
+          <th class="num" title="TTM 4 季滾動毛利率 = 4 季毛利 / 4 季營收">毛利率</th>
+          <th class="num">股價</th>
+          <th class="num">2024 EPS</th>
+          <th class="num">2025 EPS</th>
+          <th class="num">2026E EPS</th>
+          <th class="num">2027E EPS</th>
+          <th class="num" title="證交所每日公布的本益比 = 股價 / 最近 4 季實際 EPS">本益比</th>
+          <th class="num" title="明年目標價 = 2027E EPS × 本益比">明年目標價</th>
+          <th class="num" title="目標價相對現價的距離（白點=現價，桃紅點=目標價）">距離</th>
+          <th class="num" title="依距離給建議：>+20% 買進、±20% 持平、<-20% 賣出">建議</th>
+          <th class="num" title="最新月營收。滑鼠移上看近 12 月">月營收(億)</th>
+          <th>備註</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    資料來源：公開資訊觀測站手動 / 排程更新 · 儲存於 OneDrive 同步資料夾，跨電腦即時可用<br>
+    <code>index.html</code> + <code>data.js</code> 兩檔放在同一資料夾即可運作。修改後請點「匯出 data.js」存回原資料夾。
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="stockModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">新增個股</h2>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="stockForm" onsubmit="saveStock(event)">
+        <div class="section-divider">基本資料</div>
+        <div class="form-grid cols-4">
+          <div class="form-field">
+            <label>代號 *</label>
+            <input type="text" name="code" required pattern="[0-9]{4,6}" placeholder="如 2383">
+          </div>
+          <div class="form-field">
+            <label>名稱 *</label>
+            <input type="text" name="name" required placeholder="如 台光電">
+          </div>
+          <div class="form-field">
+            <label>產業</label>
+            <select name="industry">
+              <option value="CCL">CCL</option>
+              <option value="銅箔">銅箔</option>
+              <option value="玻纖">玻纖</option>
+              <option value="化材">化材</option>
+              <option value="PCB">PCB</option>
+              <option value="電子紙">電子紙</option>
+              <option value="其他">其他</option>
+            </select>
+            <span id="finmindIndustryHint" style="font-size:10px;color:var(--text-muted);margin-top:2px;"></span>
+          </div>
+          <div class="form-field">
+            <label>股本 (億)</label>
+            <input type="number" name="capitalYi" step="0.1" placeholder="如 35.8">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-top:10px;padding:10px;background:var(--bg);border-radius:6px;">
+          <button type="button" class="btn primary" onclick="autofillFromFinmind()">🔄 用 FinMind 自動帶入</button>
+          <span id="autofillStatus" style="font-size:12px;color:var(--text-dim);flex:1;">輸入代號後按此鍵，自動帶入名稱、產業、股價、最近 12 個月營收、近 2 年 EPS</span>
+        </div>
+
+        <div class="section-divider" style="margin-top:16px;">股價</div>
+        <div class="form-grid cols-3">
+          <div class="form-field">
+            <label>最新股價 (NTD)</label>
+            <input type="number" name="price" step="0.01" placeholder="如 580">
+          </div>
+          <div class="form-field">
+            <label>股價日期</label>
+            <input type="date" name="priceUpdated">
+          </div>
+        </div>
+
+        <div class="section-divider" style="margin-top:16px;">年度 EPS</div>
+        <div class="form-grid cols-4">
+          <div class="form-field"><label>2024 實際</label><input type="number" name="eps_2024" step="0.01"></div>
+          <div class="form-field"><label>2025 實際</label><input type="number" name="eps_2025" step="0.01"></div>
+          <div class="form-field"><label>2026 預估</label><input type="number" name="eps_2026_est" step="0.01"></div>
+          <div class="form-field"><label>2027 預估</label><input type="number" name="eps_2027_est" step="0.01"></div>
+        </div>
+
+        <div class="section-divider" style="margin-top:16px;">年度營收 (億)</div>
+        <div class="form-grid cols-3">
+          <div class="form-field"><label>2024</label><input type="number" name="rev_2024" step="0.1"></div>
+          <div class="form-field"><label>2025</label><input type="number" name="rev_2025" step="0.1"></div>
+          <div class="form-field"><label>2026 預估</label><input type="number" name="rev_2026_est" step="0.1"></div>
+        </div>
+
+        <div class="section-divider" style="margin-top:16px;">最近月營收 (億) / YoY (%)</div>
+        <div id="monthlyInputs" class="form-grid cols-3"></div>
+
+        <div class="section-divider" style="margin-top:16px;">備註</div>
+        <div class="form-field">
+          <textarea name="notes" rows="2" placeholder="觀察點 / 風險 / 進場條件..."></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn danger" id="deleteBtn" onclick="deleteStock()" style="display:none">刪除個股</button>
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn primary" onclick="document.getElementById('stockForm').requestSubmit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 雲端設定 Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h2>⚙ 雲端設定（GitHub Gist 同步）</h2>
+      <button class="close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;line-height:1.6;">
+        設定後，所有資料會自動存到你的 GitHub Gist。任何裝置開這個網頁、輸入相同的 PAT 與 Gist ID 就能即時同步。未設定時走「離線模式」，使用內建 data.js。
+      </p>
+      <div class="form-grid" style="grid-template-columns:1fr;gap:12px;">
+        <div class="form-field">
+          <label>GitHub Personal Access Token (PAT)</label>
+          <input type="password" id="settingsPAT" placeholder="github_pat_xxxxx..." style="font-family:monospace;">
+          <span style="font-size:11px;color:var(--text-muted);margin-top:3px;">需 Gist Read &amp; Write 權限。儲存在本機 localStorage，不會上傳。</span>
+        </div>
+        <div class="form-field">
+          <label>Gist ID</label>
+          <input type="text" id="settingsGistId" placeholder="如：95f6cff657ae6b6faa59dd33dcf9aa8e" style="font-family:monospace;">
+          <span style="font-size:11px;color:var(--text-muted);margin-top:3px;">在 gist.github.com 建立的 Secret Gist 網址末段那串。</span>
+        </div>
+        <div class="form-field">
+          <label>Gist 檔名</label>
+          <input type="text" id="settingsGistFile" value="stocks-data.json" style="font-family:monospace;">
+        </div>
+        <div id="settingsStatus" style="font-size:12px;color:var(--text-dim);margin-top:4px;min-height:16px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn danger" onclick="clearCloudConfig()" id="clearCloudBtn" style="display:none">移除設定（改回離線）</button>
+      <button class="btn" onclick="testCloudConnection()">🔌 測試連線</button>
+      <button class="btn primary" onclick="saveCloudConfig()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="globalTooltip"></div>
+
+<script src="data.js"></script>
+<script>
+  // ========== State ==========
+  let data = JSON.parse(JSON.stringify(window.STOCK_DATA || {meta:{lastUpdated:"—"},industries:[],stocks:[]}));
+  let editingCode = null;
+  let sortDirection = 'asc';
+  let hasUnsavedChanges = false;
+  const LOCAL_BACKUP_KEY = 'stockDashboardBackup';
+
+  // 標記有未儲存變更
+  function markDirty() {
+    hasUnsavedChanges = true;
+    // 自動寫入 localStorage 備份
+    try {
+      localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify({
+        data, ts: Date.now()
+      }));
+    } catch (e) { console.warn('localStorage 備份失敗', e); }
+    updateUnsavedIndicator();
+  }
+  function markClean() {
+    hasUnsavedChanges = false;
+    try { localStorage.removeItem(LOCAL_BACKUP_KEY); } catch(e) {}
+    updateUnsavedIndicator();
+  }
+  function updateUnsavedIndicator() {
+    const el = document.getElementById('unsavedIndicator');
+    if (el) el.style.display = hasUnsavedChanges ? 'inline' : 'none';
+  }
+
+  // 載入時檢查 localStorage 是否有比 data.js 新的備份
+  function checkBackupOnLoad() {
+    try {
+      const raw = localStorage.getItem(LOCAL_BACKUP_KEY);
+      if (!raw) return;
+      const backup = JSON.parse(raw);
+      const backupTime = new Date(backup.ts);
+      const diskTime = new Date(data.meta?.lastUpdated || 0).getTime();
+      // 備份比磁碟新，提示使用者
+      if (backup.ts > diskTime + 60000) {
+        const msg = `偵測到本機有未匯出的變更（${backupTime.toLocaleString('zh-TW')}），可能上次忘記匯出。要還原嗎？\n\n[確定] = 還原備份  [取消] = 忽略並用 data.js 內容`;
+        if (confirm(msg)) {
+          data = backup.data;
+          hasUnsavedChanges = true;
+          renderTable();
+          showToast('已從本機備份還原。記得「⬇ 匯出 data.js」存回 OneDrive');
+        }
+      }
+    } catch (e) { console.warn('備份讀取失敗', e); }
+  }
+
+  // 關閉/重新整理前警告
+  window.addEventListener('beforeunload', e => {
+    if (hasUnsavedChanges) {
+      e.preventDefault();
+      e.returnValue = '你有未匯出的變更，離開將遺失。';
+      return e.returnValue;
+    }
+  });
+
+  // ========== Helpers ==========
+  function fmt(n, opts={}) {
+    if (n === null || n === undefined || n === '') return '<span class="num-muted">—</span>';
+    if (typeof n !== 'number') n = parseFloat(n);
+    if (isNaN(n)) return '<span class="num-muted">—</span>';
+    let s = n.toFixed(opts.digits ?? 2);
+    if (opts.pct) s = (n*100).toFixed(1) + '%';
+    let cls = '';
+    if (opts.signed) {
+      if (n > 0) cls = 'num-pos';
+      else if (n < 0) cls = 'num-neg';
+      if (n > 0 && !opts.pct) s = '+' + s;
+      if (n > 0 && opts.pct) s = '+' + s;
+    }
+    return cls ? `<span class="${cls}">${s}</span>` : s;
+  }
+  function latestMonth(stock) {
+    const keys = Object.keys(stock.monthlyRevenue || {}).sort().reverse();
+    for (const k of keys) {
+      const m = stock.monthlyRevenue[k];
+      if (m.revenueYi !== null && m.revenueYi !== undefined) return {month: k, ...m};
+    }
+    return null;
+  }
+  function calcPE(price, eps) {
+    if (!price || !eps || eps <= 0) return null;
+    return price / eps;
+  }
+  function showToast(msg, isError=false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'toast', 2400);
+  }
+
+  // ========== Render ==========
+  function renderHeader() {
+    document.getElementById('lastUpdated').textContent = data.meta?.lastUpdated || '—';
+    document.getElementById('stockCount').textContent = data.stocks.length;
+    const industryCount = new Set(data.stocks.map(x => x.industry)).size;
+    const sc = document.getElementById('summaryCards');
+    sc.innerHTML = `
+      <div class="summary-card"><div class="label">追蹤檔數</div><div class="value">${data.stocks.length}</div></div>
+      <div class="summary-card"><div class="label">產業類別</div><div class="value">${industryCount}</div></div>
+    `;
+    // Industry filter options
+    const indSel = document.getElementById('industryFilter');
+    const currentVal = indSel.value;
+    const industries = [...new Set(data.stocks.map(x => x.industry))].sort();
+    indSel.innerHTML = '<option value="">全部產業</option>' +
+      industries.map(i => `<option value="${i}">${i}</option>`).join('');
+    indSel.value = currentVal;
+  }
+
+  function getSortedFiltered() {
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+    const indFilter = document.getElementById('industryFilter').value;
+    const sortKey = document.getElementById('sortField').value;
+    let arr = data.stocks.filter(s => {
+      if (search && !`${s.code} ${s.name}`.toLowerCase().includes(search)) return false;
+      if (indFilter && s.industry !== indFilter) return false;
+      return true;
+    });
+    if (sortKey === 'custom') return arr; // 不排序，照 data.stocks 順序
+    arr.sort((a, b) => {
+      let va, vb;
+      const getPE = s => getEffectivePE(s).value;
+      switch(sortKey) {
+        case 'code': va = a.code; vb = b.code; break;
+        case 'industry': va = a.industry; vb = b.industry; break;
+        case 'latestMonthYoy': va = latestMonth(a)?.yoy ?? -999; vb = latestMonth(b)?.yoy ?? -999; break;
+        case 'eps2026': va = a.annualEps?.["2026_est"] ?? -999; vb = b.annualEps?.["2026_est"] ?? -999; break;
+        case 'pe': va = getPE(a) ?? 99999; vb = getPE(b) ?? 99999; break;
+        case 'targetPrice': va = calcTargetPrice(a.annualEps?.["2027_est"], getPE(a)) ?? -999; vb = calcTargetPrice(b.annualEps?.["2027_est"], getPE(b)) ?? -999; break;
+        default: va = a.code; vb = b.code;
+      }
+      if (typeof va === 'string') return va.localeCompare(vb);
+      return vb - va; // descending for numeric
+    });
+    return arr;
+  }
+
+  // EPS 年增率小字 (台股慣例：正紅負綠；預測值整格藍)
+  function epsCell(value, prevValue, predicted=false) {
+    if (value === null || value === undefined) return '<span class="num-muted">—</span>';
+    const numStr = (typeof value === 'number') ? value.toFixed(2) : value;
+    const valueClass = predicted ? 'eps-predicted' : '';
+    let growth = '';
+    if (prevValue !== null && prevValue !== undefined && prevValue !== 0 && !isNaN(prevValue)) {
+      const g = (value - prevValue) / Math.abs(prevValue);
+      if (!isNaN(g)) {
+        // 成長率一律用台股紅綠（正紅負綠），不論是否預測
+        const cls = g >= 0 ? 'num-pos' : 'num-neg';
+        const sign = g >= 0 ? '+' : '';
+        growth = `<span class="eps-growth ${cls}">${sign}${(g*100).toFixed(0)}%</span>`;
+      }
+    }
+    return `<span class="eps-cell ${valueClass}">${numStr}${growth}</span>`;
+  }
+
+  function calcTargetPrice(eps2027, pe2026) {
+    if (!eps2027 || !pe2026 || pe2026 <= 0) return null;
+    return eps2027 * pe2026;
+  }
+
+  // 距離與操作建議
+  function calcDistance(currentPrice, targetPrice) {
+    if (!currentPrice || !targetPrice || currentPrice <= 0) return null;
+    return (targetPrice - currentPrice) / currentPrice;
+  }
+  function renderDistanceBar(currentPrice, targetPrice) {
+    const d = calcDistance(currentPrice, targetPrice);
+    if (d === null) return '<span class="num-muted">—</span>';
+    // ±50% 區間映射到整條 bar；超過就 clamp 到邊緣
+    const barPos = Math.max(3, Math.min(97, 50 + d * 100));
+    const pctText = `${d >= 0 ? '+' : ''}${(d * 100).toFixed(1)}%`;
+    const labelColor = d > 0.2 ? 'var(--red)' : d < -0.2 ? 'var(--green)' : 'var(--text-dim)';
+    return `
+      <div class="distance-cell">
+        <div class="distance-bar">
+          <div class="distance-dot distance-dot-current" style="left:50%" title="現價 ${currentPrice.toFixed(2)}"></div>
+          <div class="distance-dot distance-dot-target" style="left:${barPos}%" title="目標價 ${targetPrice.toFixed(0)}"></div>
+        </div>
+        <div class="distance-label" style="color:${labelColor};">${pctText}</div>
+      </div>`;
+  }
+  function getThresholds() {
+    return {
+      buy: data.meta?.signalThresholds?.buy ?? 0.20,
+      sell: data.meta?.signalThresholds?.sell ?? -0.20,
+    };
+  }
+  function renderSignal(currentPrice, targetPrice) {
+    const d = calcDistance(currentPrice, targetPrice);
+    if (d === null) return '<span class="num-muted">—</span>';
+    const { buy, sell } = getThresholds();
+    if (d > buy) return '<span class="signal-chip signal-buy">買進</span>';
+    if (d < sell) return '<span class="signal-chip signal-sell">賣出</span>';
+    return '<span class="signal-chip signal-hold">持平</span>';
+  }
+
+  // 取得有效本益比：userPER 優先 (手動覆蓋) → currentPER (FinMind TWSE) → fallback (price/eps2025)
+  function getEffectivePE(stock) {
+    if (stock.userPER !== null && stock.userPER !== undefined && !isNaN(stock.userPER)) {
+      return { value: stock.userPER, source: 'user' };
+    }
+    if (stock.currentPER) return { value: stock.currentPER, source: 'twse' };
+    if (stock.price && stock.annualEps?.["2025"] > 0) {
+      return { value: stock.price / stock.annualEps["2025"], source: 'computed' };
+    }
+    return { value: null, source: null };
+  }
+
+  // ========== Inline 編輯 ==========
+  let editingCell = null;
+
+  function getFieldValue(stock, field) {
+    if (field === 'userPER') return stock.userPER;
+    if (field === 'notes') return stock.notes;
+    if (field === 'capitalYi') return stock.capitalYi;
+    if (field === 'price') return stock.price;
+    if (field.startsWith('eps_')) return stock.annualEps?.[field.slice(4)];
+    return stock[field];
+  }
+  function setFieldValue(stock, field, value) {
+    if (field === 'userPER') stock.userPER = value;
+    else if (field === 'notes') stock.notes = value || '';
+    else if (field === 'capitalYi') stock.capitalYi = value;
+    else if (field === 'price') {
+      stock.price = value;
+      if (value !== null) stock.priceUpdated = new Date().toISOString().slice(0,10);
+    }
+    else if (field.startsWith('eps_')) {
+      if (!stock.annualEps) stock.annualEps = {};
+      stock.annualEps[field.slice(4)] = value;
+    }
+    else stock[field] = value;
+  }
+  function startInlineEdit(e) {
+    if (editingCell) commitInlineEdit();
+    const cell = e.currentTarget;
+    const code = cell.dataset.code;
+    const field = cell.dataset.field;
+    const stock = data.stocks.find(s => s.code === code);
+    if (!stock) return;
+    const isNumeric = field !== 'notes';
+    const value = getFieldValue(stock, field);
+    const input = document.createElement('input');
+    input.type = isNumeric ? 'number' : 'text';
+    if (isNumeric) input.step = '0.01';
+    input.value = (value === null || value === undefined) ? '' : value;
+    input.className = 'inline-edit-input' + (isNumeric ? ' num' : '');
+    const originalHTML = cell.innerHTML;
+    cell.innerHTML = '';
+    cell.appendChild(input);
+    cell.classList.add('editing');
+    input.focus();
+    if (isNumeric) input.select();
+    editingCell = { cell, originalHTML, code, field, input };
+    input.addEventListener('click', ev => ev.stopPropagation());
+    input.addEventListener('blur', commitInlineEdit);
+    input.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+      else if (ev.key === 'Escape') cancelInlineEdit();
+    });
+  }
+  function commitInlineEdit() {
+    if (!editingCell) return;
+    const { code, field, input } = editingCell;
+    const raw = input.value.trim();
+    const stock = data.stocks.find(s => s.code === code);
+    if (!stock) { cancelInlineEdit(); return; }
+    let value;
+    if (field === 'notes') value = raw;
+    else if (raw === '') value = null;
+    else { value = parseFloat(raw); if (isNaN(value)) value = null; }
+    setFieldValue(stock, field, value);
+    data.meta.lastUpdated = new Date().toISOString().slice(0,10);
+    markDirty();
+    editingCell = null;
+    renderTable();
+    showToast('已修改。記得「⬇ 匯出 data.js」覆蓋 OneDrive 同步');
+  }
+  function cancelInlineEdit() {
+    if (!editingCell) return;
+    const { cell, originalHTML } = editingCell;
+    cell.innerHTML = originalHTML;
+    cell.classList.remove('editing');
+    editingCell = null;
+  }
+
+  // ========== 月營收 hover 提示框 ==========
+  function showMonthlyTooltip(e, code) {
+    const stock = data.stocks.find(s => s.code === code);
+    if (!stock) return;
+    const tooltip = document.getElementById('globalTooltip');
+    tooltip.innerHTML = buildMonthlyTooltipContent(stock);
+    tooltip.style.display = 'block';
+    moveMonthlyTooltip(e);
+  }
+  function moveMonthlyTooltip(e) {
+    const tooltip = document.getElementById('globalTooltip');
+    if (tooltip.style.display !== 'block') return;
+    const rect = tooltip.getBoundingClientRect();
+    let x = e.clientX + 16, y = e.clientY + 16;
+    if (x + rect.width > window.innerWidth - 12) x = e.clientX - rect.width - 16;
+    if (y + rect.height > window.innerHeight - 12) y = window.innerHeight - rect.height - 12;
+    if (y < 12) y = 12;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+  function hideMonthlyTooltip() {
+    document.getElementById('globalTooltip').style.display = 'none';
+  }
+  function buildMonthlyTooltipContent(stock) {
+    const mr = stock.monthlyRevenue || {};
+    if (!Object.keys(mr).length) return `<div style="color:var(--text-dim);">${stock.code} ${stock.name}：無月營收資料</div>`;
+    const curYear = new Date().getFullYear();
+    const priorYear = curYear - 1;
+
+    let html = `<div class="tooltip-title" style="font-weight:600;margin-bottom:6px;color:var(--text);">${stock.code} ${stock.name} · 月營收 ${curYear} vs ${priorYear}（億）</div>`;
+    html += `<table><thead><tr><th></th>`;
+    for (let m = 1; m <= 12; m++) html += `<th>${m}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    // 今年營收
+    html += `<tr><td>${curYear}</td>`;
+    for (let m = 1; m <= 12; m++) {
+      const ym = `${curYear}-${String(m).padStart(2,'0')}`;
+      const v = mr[ym]?.revenueYi;
+      html += `<td>${(v !== null && v !== undefined) ? v.toFixed(1) : '<span style="color:var(--text-muted)">—</span>'}</td>`;
+    }
+    html += `</tr>`;
+
+    // 去年營收
+    html += `<tr class="row-prior"><td>${priorYear}</td>`;
+    for (let m = 1; m <= 12; m++) {
+      const ym = `${priorYear}-${String(m).padStart(2,'0')}`;
+      const v = mr[ym]?.revenueYi;
+      html += `<td>${(v !== null && v !== undefined) ? v.toFixed(1) : '<span style="color:var(--text-muted)">—</span>'}</td>`;
+    }
+    html += `</tr>`;
+
+    // YoY (即時從今年/去年算，不靠 stored yoy)
+    html += `<tr><td>YoY</td>`;
+    for (let m = 1; m <= 12; m++) {
+      const cur = mr[`${curYear}-${String(m).padStart(2,'0')}`]?.revenueYi;
+      const prior = mr[`${priorYear}-${String(m).padStart(2,'0')}`]?.revenueYi;
+      let cell = '<span style="color:var(--text-muted)">—</span>';
+      if (cur !== null && cur !== undefined && prior > 0) {
+        const g = cur / prior - 1;
+        const cls = g >= 0 ? 'num-pos' : 'num-neg';
+        const sign = g >= 0 ? '+' : '';
+        cell = `<span class="${cls}">${sign}${(g*100).toFixed(0)}%</span>`;
+      }
+      html += `<td>${cell}</td>`;
+    }
+    html += `</tr>`;
+
+    // 累計 YoY
+    html += `<tr style="border-top:1px solid var(--border);"><td>累計 YoY</td>`;
+    let curCum = 0, priorCum = 0;
+    for (let m = 1; m <= 12; m++) {
+      const cur = mr[`${curYear}-${String(m).padStart(2,'0')}`]?.revenueYi;
+      const prior = mr[`${priorYear}-${String(m).padStart(2,'0')}`]?.revenueYi;
+      if (cur !== null && cur !== undefined) curCum += cur;
+      if (prior !== null && prior !== undefined) priorCum += prior;
+      let cell = '<span style="color:var(--text-muted)">—</span>';
+      if (cur !== null && cur !== undefined && priorCum > 0) {
+        const g = curCum / priorCum - 1;
+        const cls = g >= 0 ? 'num-pos' : 'num-neg';
+        const sign = g >= 0 ? '+' : '';
+        cell = `<span class="${cls}">${sign}${(g*100).toFixed(0)}%</span>`;
+      }
+      html += `<td>${cell}</td>`;
+    }
+    html += `</tr></tbody></table>`;
+    return html;
+  }
+
+  function renderTable() {
+    renderHeader();
+    const arr = getSortedFiltered();
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    const isCustomSort = document.getElementById('sortField').value === 'custom';
+    arr.forEach(s => {
+      const lm = latestMonth(s);
+      const pe26 = calcPE(s.price, s.annualEps?.["2026_est"]);
+      const eps = s.annualEps || {};
+      const row = document.createElement('tr');
+      row.className = 'stock-row';
+      row.dataset.code = s.code;
+      row.onclick = (e) => {
+        // 拖拉手把、可編輯欄位、輸入框點擊不觸發展開
+        if (e.target.classList.contains('drag-handle')) return;
+        if (e.target.closest('.editable-cell')) return;
+        if (e.target.tagName === 'INPUT') return;
+        toggleDetail(s.code);
+      };
+      // 拖拉事件（只在自訂排序模式啟用）
+      if (isCustomSort) {
+        row.addEventListener('dragover', onDragOver);
+        row.addEventListener('dragenter', onDragEnter);
+        row.addEventListener('dragleave', onDragLeave);
+        row.addEventListener('drop', (e) => onDrop(e, s.code));
+      }
+      const dragHandle = isCustomSort
+        ? `<span class="drag-handle" draggable="true" title="拖拉重排">⋮⋮</span>`
+        : `<span class="drag-handle" style="opacity:0.2" title="切到「自訂順序」才能拖拉">⋮⋮</span>`;
+      // 本益比：手動 userPER 優先 → TWSE currentPER → fallback price/2025EPS
+      const pe = getEffectivePE(s);
+      const targetPrice = calcTargetPrice(eps["2027_est"], pe.value);
+      const peDisplay = pe.value
+        ? (pe.source === 'user'
+            ? `<span class="pe-overridden" title="手動覆蓋值。FinMind 官方 PE: ${s.currentPER ? s.currentPER.toFixed(1) : 'N/A'}">${pe.value.toFixed(1)}</span>`
+            : pe.value.toFixed(1))
+        : '<span class="num-muted">—</span>';
+      const lmCellContent = lm
+        ? `<span class="monthly-trigger" onmouseenter="showMonthlyTooltip(event, '${s.code}')" onmousemove="moveMonthlyTooltip(event)" onmouseleave="hideMonthlyTooltip()">${fmt(lm.revenueYi, {digits:2})} <span style="color:var(--text-muted);font-size:10px;">(${lm.month.slice(5)})</span></span>`
+        : '<span class="num-muted">—</span>';
+      // 可編輯欄位的共用屬性
+      const edit = (field) => `class="num editable-cell" data-code="${s.code}" data-field="${field}" ondblclick="startInlineEdit(event)" title="雙擊修改"`;
+      row.innerHTML = `
+        <td>${dragHandle}</td>
+        <td class="stock-code">${s.code}</td>
+        <td class="stock-name">${s.name}</td>
+        <td><span class="industry-chip industry-${s.industry}">${s.industry || '—'}</span></td>
+        <td class="num" title="股本由 FinMind 抓取，不可手動修改">${fmt(s.capitalYi, {digits:1})}</td>
+        <td class="num" title="TTM 4 季滾動毛利率（隨季報更新）">${(s.grossMargin !== null && s.grossMargin !== undefined) ? (s.grossMargin * 100).toFixed(1) + '%' : '<span class="num-muted">—</span>'}</td>
+        <td class="num stock-price" title="股價由每日 15:00 排程自動更新${s.priceUpdated ? '（最後更新：' + s.priceUpdated + '）' : ''}">${fmt(s.price, {digits:2})}</td>
+        <td ${edit('eps_2024')}>${epsCell(eps["2024"], null)}</td>
+        <td ${edit('eps_2025')}>${epsCell(eps["2025"], eps["2024"])}</td>
+        <td ${edit('eps_2026_est')}>${epsCell(eps["2026_est"], eps["2025"], true)}</td>
+        <td ${edit('eps_2027_est')}>${epsCell(eps["2027_est"], eps["2026_est"], true)}</td>
+        <td ${edit('userPER')}>${peDisplay}</td>
+        <td class="num">${targetPrice ? `<span class="target-price">${targetPrice.toFixed(0)}</span>` : '<span class="num-muted">—</span>'}</td>
+        <td class="num">${renderDistanceBar(s.price, targetPrice)}</td>
+        <td class="num">${renderSignal(s.price, targetPrice)}</td>
+        <td class="num">${lmCellContent}</td>
+        <td class="editable-cell" data-code="${s.code}" data-field="notes" ondblclick="startInlineEdit(event)" title="雙擊修改備註" style="color:var(--text-dim);font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;">${s.notes || '<span class="num-muted">點此新增備註</span>'}</td>
+      `;
+      // 拖拉開始
+      if (isCustomSort) {
+        const handle = row.querySelector('.drag-handle');
+        handle.addEventListener('dragstart', (e) => onDragStart(e, s.code, row));
+        handle.addEventListener('dragend', () => onDragEnd(row));
+      }
+      tbody.appendChild(row);
+    });
+    if (arr.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:32px;color:var(--text-dim);">沒有符合條件的個股。</td></tr>';
+    }
+  }
+
+  // ========== 拖拉重排 ==========
+  let draggedCode = null;
+  function onDragStart(e, code, row) {
+    draggedCode = code;
+    row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', code); // Firefox 需要
+  }
+  function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+  function onDragEnter(e) {
+    const tr = e.currentTarget;
+    if (tr.dataset.code === draggedCode) return;
+    tr.classList.add('drag-over-top');
+  }
+  function onDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over-top', 'drag-over-bottom');
+  }
+  function onDragEnd(row) {
+    row.classList.remove('dragging');
+    document.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(r =>
+      r.classList.remove('drag-over-top','drag-over-bottom'));
+  }
+  function onDrop(e, targetCode) {
+    e.preventDefault(); e.stopPropagation();
+    document.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(r =>
+      r.classList.remove('drag-over-top','drag-over-bottom'));
+    if (!draggedCode || draggedCode === targetCode) return;
+    const stocks = data.stocks;
+    const fromIdx = stocks.findIndex(s => s.code === draggedCode);
+    const toIdx = stocks.findIndex(s => s.code === targetCode);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = stocks.splice(fromIdx, 1);
+    stocks.splice(toIdx, 0, moved);
+    draggedCode = null;
+    data.meta.lastUpdated = new Date().toISOString().slice(0,10);
+    markDirty();
+    renderTable();
+    showToast('已重排。請點「⬇ 匯出 data.js」並覆蓋 OneDrive 檔案以同步。');
+  }
+
+  function toggleDetail(code) {
+    const existing = document.querySelector(`tr.detail-row[data-detail="${code}"]`);
+    if (existing) { existing.remove(); return; }
+    // 移除其他展開
+    document.querySelectorAll('tr.detail-row').forEach(r => r.remove());
+    const row = document.querySelector(`tr.stock-row[data-code="${code}"]`);
+    if (!row) return;
+    const stock = data.stocks.find(x => x.code === code);
+    if (!stock) return;
+
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'detail-row';
+    detailRow.dataset.detail = code;
+    detailRow.innerHTML = `<td colspan="17"><div class="detail-panel">${renderDetail(stock)}</div></td>`;
+    row.after(detailRow);
+  }
+
+  function renderDetail(s) {
+    // 季度資料
+    const qKeys = Object.keys(s.quarterly || {}).sort();
+    let qHtml = '<table class="detail-table"><thead><tr><th>季</th><th class="num">營收(億)</th><th class="num">EPS</th><th class="num">YoY</th></tr></thead><tbody>';
+    qKeys.forEach(q => {
+      const v = s.quarterly[q];
+      qHtml += `<tr><td>${q}</td><td class="num">${fmt(v.revenueYi)}</td><td class="num">${fmt(v.eps)}</td><td class="num">${fmt(v.yoy,{pct:true,signed:true})}</td></tr>`;
+    });
+    qHtml += '</tbody></table>';
+
+    // 月營收
+    const mKeys = Object.keys(s.monthlyRevenue || {}).sort();
+    let mHtml = '<table class="detail-table"><thead><tr><th>月份</th><th class="num">營收(億)</th><th class="num">YoY</th><th class="num">累計 YoY</th></tr></thead><tbody>';
+    mKeys.forEach(m => {
+      const v = s.monthlyRevenue[m];
+      mHtml += `<tr><td>${m}</td><td class="num">${fmt(v.revenueYi)}</td><td class="num">${fmt(v.yoy,{pct:true,signed:true})}</td><td class="num">${fmt(v.cumYoy,{pct:true,signed:true})}</td></tr>`;
+    });
+    mHtml += '</tbody></table>';
+
+    // 年度
+    let aHtml = '<table class="detail-table"><tbody>';
+    aHtml += `<tr><td>2024 營收</td><td class="num">${fmt(s.annualRevenueYi?.["2024"])} 億</td></tr>`;
+    aHtml += `<tr><td>2025 營收</td><td class="num">${fmt(s.annualRevenueYi?.["2025"])} 億</td></tr>`;
+    aHtml += `<tr><td>2026 預估</td><td class="num">${fmt(s.annualRevenueYi?.["2026_est"])} 億</td></tr>`;
+    aHtml += `<tr><td>2024 EPS</td><td class="num">${fmt(s.annualEps?.["2024"])}</td></tr>`;
+    aHtml += `<tr><td>2025 EPS</td><td class="num">${fmt(s.annualEps?.["2025"])}</td></tr>`;
+    aHtml += `<tr><td>2026 預估</td><td class="num">${fmt(s.annualEps?.["2026_est"])}</td></tr>`;
+    aHtml += `<tr><td>2027 預估</td><td class="num">${fmt(s.annualEps?.["2027_est"])}</td></tr>`;
+    aHtml += '</tbody></table>';
+
+    return `
+      <div class="detail-grid">
+        <div class="detail-section"><h3>年度資料</h3>${aHtml}</div>
+        <div class="detail-section"><h3>季度資料</h3>${qHtml}</div>
+        <div class="detail-section"><h3>月營收歷史</h3>${mHtml}</div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn" onclick="openEditModal('${s.code}')">✎ 編輯</button>
+        <a class="btn" href="https://mops.twse.com.tw/mops/web/t05st10_ifrs?step=1&FILE_DAY=&queryName=&inputType=co_id&isnew=true&TYPEK=&co_id=${s.code}" target="_blank">公開資訊觀測站 ↗</a>
+        <a class="btn" href="https://tw.stock.yahoo.com/quote/${s.code}.TW" target="_blank">Yahoo 股市 ↗</a>
+        <a class="btn" href="https://goodinfo.tw/tw/StockInfo/ShowK_Chart.asp?STOCK_ID=${s.code}" target="_blank">Goodinfo ↗</a>
+      </div>
+    `;
+  }
+
+  // ========== Modal / CRUD ==========
+  function openAddModal() {
+    editingCode = null;
+    pendingFinmindData = null;
+    document.getElementById('modalTitle').textContent = '新增個股';
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('stockForm').reset();
+    document.getElementById('autofillStatus').innerHTML = '輸入代號後按此鍵，自動帶入名稱、產業、股價、最近 12 個月營收、近 2 年 EPS';
+    document.getElementById('autofillStatus').style.color = 'var(--text-dim)';
+    document.getElementById('finmindIndustryHint').textContent = '';
+    renderMonthlyInputs(null);
+    document.getElementById('stockModal').classList.add('show');
+  }
+  function openEditModal(code) {
+    const s = data.stocks.find(x => x.code === code);
+    if (!s) return;
+    editingCode = code;
+    pendingFinmindData = null;
+    document.getElementById('modalTitle').textContent = `編輯 ${s.code} ${s.name}`;
+    document.getElementById('deleteBtn').style.display = '';
+    document.getElementById('autofillStatus').innerHTML = '可按此鍵重新從 FinMind 抓取最新資料';
+    document.getElementById('autofillStatus').style.color = 'var(--text-dim)';
+    document.getElementById('finmindIndustryHint').textContent = '';
+    const f = document.getElementById('stockForm');
+    f.code.value = s.code;
+    f.name.value = s.name;
+    f.industry.value = s.industry || 'CCL';
+    f.capitalYi.value = s.capitalYi ?? '';
+    f.price.value = s.price ?? '';
+    f.priceUpdated.value = s.priceUpdated ?? '';
+    f.eps_2024.value = s.annualEps?.["2024"] ?? '';
+    f.eps_2025.value = s.annualEps?.["2025"] ?? '';
+    f.eps_2026_est.value = s.annualEps?.["2026_est"] ?? '';
+    f.eps_2027_est.value = s.annualEps?.["2027_est"] ?? '';
+    f.rev_2024.value = s.annualRevenueYi?.["2024"] ?? '';
+    f.rev_2025.value = s.annualRevenueYi?.["2025"] ?? '';
+    f.rev_2026_est.value = s.annualRevenueYi?.["2026_est"] ?? '';
+    f.notes.value = s.notes || '';
+    renderMonthlyInputs(s);
+    document.getElementById('stockModal').classList.add('show');
+  }
+  function renderMonthlyInputs(stock) {
+    // 最近 6 個月（含本月）
+    const today = new Date();
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      months.push(key);
+    }
+    const container = document.getElementById('monthlyInputs');
+    container.innerHTML = '';
+    months.forEach(m => {
+      const v = stock?.monthlyRevenue?.[m] || {};
+      const div = document.createElement('div');
+      div.className = 'form-field';
+      div.innerHTML = `
+        <label>${m}</label>
+        <input type="number" name="m_${m}_rev" step="0.01" placeholder="營收(億)" value="${v.revenueYi ?? ''}" style="margin-bottom:4px;">
+        <input type="number" name="m_${m}_yoy" step="0.001" placeholder="YoY (例: 0.18 = 18%)" value="${v.yoy ?? ''}">
+      `;
+      container.appendChild(div);
+    });
+  }
+  function closeModal() {
+    document.getElementById('stockModal').classList.remove('show');
+  }
+  function saveStock(e) {
+    e.preventDefault();
+    const f = e.target;
+    const code = f.code.value.trim();
+    const stock = {
+      code,
+      name: f.name.value.trim(),
+      industry: f.industry.value,
+      capitalYi: parseFloat(f.capitalYi.value) || null,
+      price: parseFloat(f.price.value) || null,
+      priceUpdated: f.priceUpdated.value || null,
+      annualEps: {
+        "2024": parseFloat(f.eps_2024.value) || null,
+        "2025": parseFloat(f.eps_2025.value) || null,
+        "2026_est": parseFloat(f.eps_2026_est.value) || null,
+        "2027_est": parseFloat(f.eps_2027_est.value) || null,
+      },
+      annualRevenueYi: {
+        "2024": parseFloat(f.rev_2024.value) || null,
+        "2025": parseFloat(f.rev_2025.value) || null,
+        "2026_est": parseFloat(f.rev_2026_est.value) || null,
+      },
+      quarterly: editingCode ? (data.stocks.find(x => x.code === editingCode)?.quarterly || {}) : {},
+      monthlyRevenue: {},
+      notes: f.notes.value.trim(),
+      currentPER: editingCode ? (data.stocks.find(x => x.code === editingCode)?.currentPER ?? null) : null,
+      perDate: editingCode ? (data.stocks.find(x => x.code === editingCode)?.perDate ?? null) : null,
+      userPER: editingCode ? (data.stocks.find(x => x.code === editingCode)?.userPER ?? null) : null,
+      grossMargin: editingCode ? (data.stocks.find(x => x.code === editingCode)?.grossMargin ?? null) : null,
+    };
+    // 月營收 (表單可見的 6 個月)
+    Array.from(f.elements).forEach(el => {
+      const m = el.name.match(/^m_(\d{4}-\d{2})_(rev|yoy)$/);
+      if (m && el.value) {
+        const key = m[1];
+        stock.monthlyRevenue[key] ??= { revenueYi: null, yoy: null, cumYoy: null };
+        if (m[2] === 'rev') stock.monthlyRevenue[key].revenueYi = parseFloat(el.value);
+        if (m[2] === 'yoy') stock.monthlyRevenue[key].yoy = parseFloat(el.value);
+      }
+    });
+
+    // 合併 FinMind 自動帶入的資料（含表單外的歷史月份與季度 EPS）
+    if (pendingFinmindData?.monthlyRevenue) {
+      Object.entries(pendingFinmindData.monthlyRevenue).forEach(([ym, v]) => {
+        if (!stock.monthlyRevenue[ym]) {
+          stock.monthlyRevenue[ym] = v;
+        } else {
+          stock.monthlyRevenue[ym] = {
+            revenueYi: stock.monthlyRevenue[ym].revenueYi ?? v.revenueYi,
+            yoy: stock.monthlyRevenue[ym].yoy ?? v.yoy,
+            cumYoy: v.cumYoy,
+          };
+        }
+      });
+    }
+    if (pendingFinmindData?.quarterly) {
+      stock.quarterly = {...stock.quarterly, ...pendingFinmindData.quarterly};
+    }
+    if (pendingFinmindData?.currentPER) {
+      stock.currentPER = pendingFinmindData.currentPER;
+      stock.perDate = pendingFinmindData.perDate;
+    }
+    if (pendingFinmindData?.grossMargin) {
+      stock.grossMargin = pendingFinmindData.grossMargin;
+    }
+
+    if (editingCode) {
+      const idx = data.stocks.findIndex(x => x.code === editingCode);
+      // 保留現有月營收歷史，再合併新填的
+      const existing = data.stocks[idx];
+      stock.monthlyRevenue = {...(existing.monthlyRevenue || {}), ...stock.monthlyRevenue};
+      data.stocks[idx] = stock;
+    } else {
+      if (data.stocks.find(x => x.code === code)) {
+        showToast(`代號 ${code} 已存在`, true);
+        return;
+      }
+      data.stocks.push(stock);
+    }
+    data.meta.lastUpdated = new Date().toISOString().slice(0,10);
+    data.meta.updatedBy = '手動編輯';
+    markDirty();
+    closeModal();
+    renderTable();
+    showToast(editingCode ? '已更新' : '已新增。記得點「匯出 data.js」存回 OneDrive！');
+  }
+  function deleteStock() {
+    if (!editingCode) return;
+    if (!confirm(`確定刪除 ${editingCode}？`)) return;
+    data.stocks = data.stocks.filter(x => x.code !== editingCode);
+    data.meta.lastUpdated = new Date().toISOString().slice(0,10);
+    markDirty();
+    closeModal();
+    renderTable();
+    showToast('已刪除。記得匯出存檔！');
+  }
+
+  // ========== Import / Export ==========
+  function exportData() {
+    const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    const content = `// 老爸個股追蹤資料檔
+// 匯出時間: ${new Date().toLocaleString('zh-TW')}
+// 將本檔覆蓋原本的 data.js 即可同步至各電腦
+const STOCK_DATA = ${JSON.stringify(data, null, 2)};
+if (typeof window !== 'undefined') { window.STOCK_DATA = STOCK_DATA; }
+if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
+`;
+    const blob = new Blob([content], {type: 'application/javascript'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'data.js';
+    a.click();
+    URL.revokeObjectURL(url);
+    markClean();
+    showToast('已匯出 data.js，請覆蓋 OneDrive 資料夾中的同名檔');
+  }
+  function importData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target.result;
+        // 寬鬆解析: 接受 const STOCK_DATA = {...} 也接受純 JSON
+        let json;
+        const match = text.match(/STOCK_DATA\s*=\s*(\{[\s\S]*?\});/);
+        if (match) {
+          json = JSON.parse(match[1]);
+        } else {
+          json = JSON.parse(text);
+        }
+        if (!json.stocks) throw new Error('找不到 stocks 欄位');
+        data = json;
+        markDirty();
+        renderTable();
+        showToast('已匯入');
+      } catch (err) {
+        showToast('匯入失敗: ' + err.message, true);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // ========== FinMind 自動帶入 ==========
+  const FINMIND_BASE = 'https://api.finmindtrade.com/api/v4/data';
+  let pendingFinmindData = null;
+
+  function getFinmindToken() {
+    return data.meta?.finmindToken || localStorage.getItem('finmindToken') || '';
+  }
+
+  async function finmindFetch(dataset, code, startDate, endDate) {
+    const token = getFinmindToken();
+    if (!token) throw new Error('未設定 FinMind Token');
+    const params = new URLSearchParams({ dataset, data_id: code, token });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    const res = await fetch(`${FINMIND_BASE}?${params}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.status !== 200) throw new Error(json.msg || 'API failed');
+    return json.data || [];
+  }
+
+  function suggestIndustry(finmindIndustry, stockName='') {
+    const map = {
+      '玻璃陶瓷工業': '玻纖', '玻璃陶瓷業': '玻纖', '玻璃工業': '玻纖',
+      '化學工業': '化材', '化學生技醫療': '化材',
+      '光電業': '電子紙',
+    };
+    if (map[finmindIndustry]) return map[finmindIndustry];
+    if (/銅/.test(stockName)) return '銅箔';
+    if (/玻|纖/.test(stockName)) return '玻纖';
+    if (/化/.test(stockName)) return '化材';
+    if (/(電子紙|顯示|光電)/.test(stockName)) return '電子紙';
+    return null;
+  }
+
+  function isoDaysAgo(days) {
+    return new Date(Date.now() - days*86400*1000).toISOString().slice(0,10);
+  }
+
+  async function autofillFromFinmind() {
+    const form = document.getElementById('stockForm');
+    const code = form.code.value.trim();
+    const statusEl = document.getElementById('autofillStatus');
+    const hintEl = document.getElementById('finmindIndustryHint');
+
+    if (!code || !/^[0-9]{4,6}$/.test(code)) {
+      statusEl.textContent = '請先輸入有效代號（4-6 位數字）';
+      statusEl.style.color = 'var(--red)';
+      return;
+    }
+    if (!getFinmindToken()) {
+      statusEl.textContent = '未設定 FinMind Token（請在 data.js meta.finmindToken 內）';
+      statusEl.style.color = 'var(--red)';
+      return;
+    }
+
+    statusEl.textContent = '抓取中…';
+    statusEl.style.color = 'var(--text-dim)';
+    pendingFinmindData = { monthlyRevenue: {}, quarterly: {} };
+
+    const today = new Date().toISOString().slice(0,10);
+
+    try {
+      const [info, price, monthRev, finStmt, balanceSheet, perData] = await Promise.allSettled([
+        finmindFetch('TaiwanStockInfo', code),
+        finmindFetch('TaiwanStockPrice', code, isoDaysAgo(14), today),
+        finmindFetch('TaiwanStockMonthRevenue', code, isoDaysAgo(1500), today),  // ~4 年數據，支援多年 YoY 與 trend
+        finmindFetch('TaiwanStockFinancialStatements', code, isoDaysAgo(1100), today),
+        finmindFetch('TaiwanStockBalanceSheet', code, isoDaysAgo(400), today),
+        finmindFetch('TaiwanStockPER', code, isoDaysAgo(14), today),
+      ]);
+
+      const summary = [];
+      const fails = [];
+
+      // 1. 股票基本資料
+      if (info.status === 'fulfilled' && info.value.length) {
+        const i = info.value[0];
+        if (i.stock_name) { form.name.value = i.stock_name; summary.push(`名稱:${i.stock_name}`); }
+        if (i.industry_category) {
+          const suggested = suggestIndustry(i.industry_category, i.stock_name);
+          if (suggested) form.industry.value = suggested;
+          hintEl.textContent = `FinMind 分類: ${i.industry_category}` + (suggested ? ` → 建議「${suggested}」` : '（請手動選擇）');
+          // 備註若空，用 FinMind 產業類別當預填，使用者再編輯
+          if (!form.notes.value.trim()) {
+            form.notes.value = i.industry_category;
+          }
+        }
+      } else if (info.status === 'rejected') {
+        fails.push('股票資訊');
+      }
+
+      // 2. 股價（排序取最新；FinMind 免費版盤中有 T-1 延遲）
+      if (price.status === 'fulfilled' && price.value.length) {
+        const sortedPrices = [...price.value].sort((a,b) => b.date.localeCompare(a.date));
+        const latest = sortedPrices[0];
+        if (latest.close) {
+          form.price.value = latest.close;
+          form.priceUpdated.value = latest.date;
+          summary.push(`股價:${latest.close}@${latest.date}`);
+        }
+      } else if (price.status === 'rejected') {
+        fails.push('股價');
+      }
+
+      // 3. 月營收（自行從原始 revenue 計算 YoY 與累計 YoY）
+      if (monthRev.status === 'fulfilled' && monthRev.value.length) {
+        const sorted = [...monthRev.value].sort((a,b) => a.date.localeCompare(b.date));
+        // 建立 revenue 對照表
+        const revMap = {};
+        sorted.forEach(r => {
+          const ym = `${r.revenue_year}-${String(r.revenue_month).padStart(2,'0')}`;
+          revMap[ym] = r.revenue;
+        });
+        sorted.forEach(r => {
+          const y = r.revenue_year, mo = r.revenue_month;
+          const ym = `${y}-${String(mo).padStart(2,'0')}`;
+          const revYi = r.revenue / 100_000_000;
+          // YoY：與上年同月比
+          const prevYM = `${y-1}-${String(mo).padStart(2,'0')}`;
+          let yoy = null;
+          if (revMap[prevYM] && revMap[prevYM] > 0) {
+            yoy = r.revenue / revMap[prevYM] - 1;
+          }
+          // 累計 YoY：本年 1~當月加總 / 上年同期加總
+          let ytdRev = 0, prevYtdRev = 0;
+          for (let m = 1; m <= mo; m++) {
+            const cur = `${y}-${String(m).padStart(2,'0')}`;
+            const prev = `${y-1}-${String(m).padStart(2,'0')}`;
+            if (revMap[cur]) ytdRev += revMap[cur];
+            if (revMap[prev]) prevYtdRev += revMap[prev];
+          }
+          const cumYoy = prevYtdRev > 0 ? (ytdRev / prevYtdRev - 1) : null;
+
+          pendingFinmindData.monthlyRevenue[ym] = { revenueYi: revYi, yoy, cumYoy };
+          const fieldRev = form.querySelector(`[name="m_${ym}_rev"]`);
+          const fieldYoy = form.querySelector(`[name="m_${ym}_yoy"]`);
+          if (fieldRev) fieldRev.value = revYi.toFixed(2);
+          if (fieldYoy && yoy !== null) fieldYoy.value = yoy.toFixed(3);
+        });
+        summary.push(`月營收:${sorted.length}筆`);
+      } else if (monthRev.status === 'rejected') {
+        fails.push('月營收');
+      }
+
+      // 5b. 本益比 (TWSE 官方 PER)
+      if (perData.status === 'fulfilled' && perData.value.length) {
+        const sortedPER = [...perData.value].sort((a,b) => b.date.localeCompare(a.date));
+        const latestPER = sortedPER[0];
+        if (latestPER.PER && latestPER.PER > 0) {
+          pendingFinmindData.currentPER = latestPER.PER;
+          pendingFinmindData.perDate = latestPER.date;
+          summary.push(`本益比:${latestPER.PER.toFixed(1)}`);
+        }
+      } else if (perData.status === 'rejected') {
+        fails.push('本益比');
+      }
+
+      // 5. 股本 (從資產負債表抓 CommonStocks)
+      if (balanceSheet.status === 'fulfilled' && balanceSheet.value.length) {
+        // 找最近一期，並過濾出股本相關的 type
+        const capRows = balanceSheet.value.filter(r =>
+          /^(CommonStocks|CapitalStock|PaidInCapital|TotalStockholdersEquity)$/.test(r.type)
+        );
+        const commonStocks = capRows.filter(r => r.type === 'CommonStocks');
+        const pickList = commonStocks.length ? commonStocks : capRows;
+        if (pickList.length) {
+          pickList.sort((a,b) => b.date.localeCompare(a.date));
+          const latestCap = pickList[0];
+          const capitalYi = latestCap.value / 100_000_000;
+          if (capitalYi > 0 && capitalYi < 10000) {
+            form.capitalYi.value = capitalYi.toFixed(1);
+            summary.push(`股本:${capitalYi.toFixed(1)}億`);
+          }
+        }
+      } else if (balanceSheet.status === 'rejected') {
+        fails.push('股本');
+      }
+
+      // 4. 季度 EPS / 年度 EPS
+      if (finStmt.status === 'fulfilled' && finStmt.value.length) {
+        const epsRows = finStmt.value.filter(r => /^(EPS|eps|BasicEPS)$/.test(r.type));
+        const yearlyQuarters = {};
+        epsRows.forEach(r => {
+          const y = r.date.slice(0,4);
+          const m = parseInt(r.date.slice(5,7), 10);
+          let q = m<=3?1 : m<=6?2 : m<=9?3 : 4;
+          if (!yearlyQuarters[y]) yearlyQuarters[y] = {};
+          yearlyQuarters[y][q] = parseFloat(r.value);
+          pendingFinmindData.quarterly[`${y}Q${q}`] = { revenueYi: null, eps: parseFloat(r.value), yoy: null };
+        });
+        Object.entries(yearlyQuarters).forEach(([y, qs]) => {
+          const annual = (qs[1]||0)+(qs[2]||0)+(qs[3]||0)+(qs[4]||0);
+          if (annual === 0) return;
+          if (y === '2024') form.eps_2024.value = annual.toFixed(2);
+          else if (y === '2025') form.eps_2025.value = annual.toFixed(2);
+        });
+        summary.push(`EPS:${Object.keys(yearlyQuarters).length}年`);
+
+        // 順便算 TTM 毛利率（type 名稱在不同個股 / 年度可能變動，用 regex 放寬比對）
+        const isGrossProfit = (t) => /^(GrossProfit|OperatingGrossProfit|GrossProfitLoss|GrossProfitFromOperatingActivities)$/i.test(t) || /毛利/.test(t);
+        const isRevenue = (t) => /^(Revenue|Revenues|OperatingRevenue|NetRevenue|TotalRevenue)$/i.test(t) || /營業?收入|^營收$/.test(t);
+        const byQuarter = {};
+        const sampleTypes = new Set();
+        finStmt.value.forEach(r => {
+          sampleTypes.add(r.type);
+          if (!byQuarter[r.date]) byQuarter[r.date] = {};
+          if (isGrossProfit(r.type)) byQuarter[r.date].gp = parseFloat(r.value);
+          else if (isRevenue(r.type)) byQuarter[r.date].rev = parseFloat(r.value);
+        });
+        console.log(`[FinMind] ${code} 財報 type 樣本:`, [...sampleTypes].slice(0, 30));
+        const quartersSorted = Object.keys(byQuarter).sort().reverse().slice(0, 4);
+        let ttmGP = 0, ttmRev = 0, validQ = 0;
+        quartersSorted.forEach(q => {
+          if (byQuarter[q].gp !== undefined && byQuarter[q].rev !== undefined) {
+            ttmGP += byQuarter[q].gp;
+            ttmRev += byQuarter[q].rev;
+            validQ++;
+          }
+        });
+        if (validQ >= 2 && ttmRev > 0) {
+          pendingFinmindData.grossMargin = ttmGP / ttmRev;
+          summary.push(`毛利率:${(ttmGP/ttmRev*100).toFixed(1)}%`);
+        } else {
+          console.warn(`[FinMind] ${code} 毛利率算不出來：找到 ${validQ} 個有效季度，TTM 營收 ${ttmRev}`);
+        }
+      } else if (finStmt.status === 'rejected') {
+        fails.push('EPS');
+      }
+
+      let msg = `✓ ${summary.join(' · ')}`;
+      if (fails.length) msg += ` <span style="color:var(--yellow)">· 失敗: ${fails.join(', ')}</span>`;
+      msg += ` <span style="color:var(--text-muted)">（2026E/2027E 預估 EPS 與股本請手動填）</span>`;
+      statusEl.innerHTML = msg;
+      statusEl.style.color = 'var(--green)';
+
+    } catch (err) {
+      statusEl.textContent = '抓取失敗: ' + err.message + '（可能 CORS 被擋或 token 無效）';
+      statusEl.style.color = 'var(--red)';
+      console.error(err);
+    }
+  }
+
+  // ========== GitHub Gist 雲端同步 ==========
+  const CLOUD_CFG_KEY = 'gistCloudConfig';
+  let currentGistSha = null;
+
+  function getCloudConfig() {
+    try { return JSON.parse(localStorage.getItem(CLOUD_CFG_KEY) || 'null'); }
+    catch { return null; }
+  }
+  function setCloudConfig(cfg) {
+    if (cfg) localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+    else localStorage.removeItem(CLOUD_CFG_KEY);
+  }
+  function isCloudMode() { return !!getCloudConfig(); }
+
+  function updateCloudUI() {
+    const cloud = isCloudMode();
+    const statusEl = document.getElementById('cloudStatus');
+    document.getElementById('pullBtn').style.display = cloud ? '' : 'none';
+    document.getElementById('syncBtn').style.display = cloud ? '' : 'none';
+    if (statusEl) statusEl.innerHTML = cloud
+      ? '<span style="color:#22c55e">☁ 雲端</span>'
+      : '<span style="color:#fbbf24">📁 離線</span>';
+  }
+
+  async function gistGet() {
+    const cfg = getCloudConfig();
+    if (!cfg) throw new Error('未設定雲端');
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      headers: { 'Authorization': `Bearer ${cfg.pat}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gist 讀取失敗 (${res.status}): ${err.slice(0, 200)}`);
+    }
+    const json = await res.json();
+    currentGistSha = json.history?.[0]?.version || null;
+    const filename = cfg.filename || 'stocks-data.json';
+    let file = json.files[filename];
+    if (!file) {
+      const firstJson = Object.values(json.files).find(f => f.filename.endsWith('.json'));
+      if (firstJson) file = firstJson;
+    }
+    if (!file) return { content: null, filename, empty: true };
+    const content = file.content;
+    if (!content || content.trim() === '' || /^\{\s*"placeholder"\s*:\s*true\s*\}$/.test(content.trim())) {
+      return { content: null, filename: file.filename, empty: true };
+    }
+    return { content, filename: file.filename, empty: false };
+  }
+
+  async function gistPut(jsonContent) {
+    const cfg = getCloudConfig();
+    if (!cfg) throw new Error('未設定雲端');
+    const filename = cfg.filename || 'stocks-data.json';
+    const body = JSON.stringify({ files: { [filename]: { content: jsonContent } } });
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${cfg.pat}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Gist 寫入失敗 (${res.status}): ${err.slice(0, 200)}`);
+    }
+    const json = await res.json();
+    currentGistSha = json.history?.[0]?.version || null;
+    return json;
+  }
+
+  async function pullFromGist() {
+    if (!isCloudMode()) { showToast('未設定雲端', true); return; }
+    const statusEl = document.getElementById('cloudStatus');
+    const orig = statusEl.innerHTML;
+    statusEl.innerHTML = '<span style="color:var(--accent)">⟳ 拉取中</span>';
+    try {
+      const result = await gistGet();
+      if (result.empty) {
+        showToast('Gist 是空的。按「📤 同步」把目前資料推上去', true);
+        updateCloudUI();
+        return;
+      }
+      const remoteData = JSON.parse(result.content);
+      if (hasUnsavedChanges && !confirm('本機有未同步變更，拉取會覆蓋，確定？')) {
+        updateCloudUI(); return;
+      }
+      data = remoteData;
+      markClean();
+      renderTable();
+      updateCloudUI();
+      showToast('已從 Gist 拉取最新');
+    } catch (err) {
+      statusEl.innerHTML = '<span style="color:var(--red)">☁ 失敗</span>';
+      showToast('拉取失敗: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  async function syncToGist() {
+    if (!isCloudMode()) { showToast('未設定雲端', true); return; }
+    const statusEl = document.getElementById('cloudStatus');
+    statusEl.innerHTML = '<span style="color:var(--accent)">⟳ 同步中</span>';
+    try {
+      data.meta.lastUpdated = new Date().toISOString().slice(0,10);
+      data.meta.updatedBy = '雲端同步';
+      const content = JSON.stringify(data, null, 2);
+      await gistPut(content);
+      markClean();
+      updateCloudUI();
+      showToast('✓ 已同步到 Gist');
+    } catch (err) {
+      statusEl.innerHTML = '<span style="color:var(--red)">☁ 失敗</span>';
+      showToast('同步失敗: ' + err.message, true);
+      console.error(err);
+    }
+  }
+
+  // ===== Settings Modal =====
+  function openSettingsModal() {
+    const cfg = getCloudConfig();
+    document.getElementById('settingsPAT').value = cfg?.pat || '';
+    document.getElementById('settingsGistId').value = cfg?.gistId || '';
+    document.getElementById('settingsGistFile').value = cfg?.filename || 'stocks-data.json';
+    document.getElementById('settingsStatus').textContent = '';
+    document.getElementById('clearCloudBtn').style.display = cfg ? '' : 'none';
+    document.getElementById('settingsModal').classList.add('show');
+  }
+  function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('show'); }
+
+  async function testCloudConnection() {
+    const statusEl = document.getElementById('settingsStatus');
+    const pat = document.getElementById('settingsPAT').value.trim();
+    const gistId = document.getElementById('settingsGistId').value.trim();
+    if (!pat || !gistId) { statusEl.innerHTML = '<span style="color:var(--red)">請填 PAT 與 Gist ID</span>'; return; }
+    statusEl.innerHTML = '<span style="color:var(--accent)">測試中...</span>';
+    try {
+      const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: { 'Authorization': `Bearer ${pat}`, 'Accept': 'application/vnd.github+json' }
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        statusEl.innerHTML = `<span style="color:var(--red)">失敗 (${res.status}): ${err.slice(0,150)}</span>`;
+        return;
+      }
+      const json = await res.json();
+      const fileCount = Object.keys(json.files).length;
+      const totalBytes = Object.values(json.files).reduce((s, f) => s + (f.size || 0), 0);
+      statusEl.innerHTML = `<span style="color:var(--green)">✓ 連線正常。Gist 內 ${fileCount} 個檔案，共 ${totalBytes} bytes</span>`;
+    } catch (err) {
+      statusEl.innerHTML = `<span style="color:var(--red)">錯誤: ${err.message}</span>`;
+    }
+  }
+
+  async function saveCloudConfig() {
+    const pat = document.getElementById('settingsPAT').value.trim();
+    const gistId = document.getElementById('settingsGistId').value.trim();
+    const filename = document.getElementById('settingsGistFile').value.trim() || 'stocks-data.json';
+    if (!pat || !gistId) {
+      document.getElementById('settingsStatus').innerHTML = '<span style="color:var(--red)">PAT 與 Gist ID 都要填</span>';
+      return;
+    }
+    setCloudConfig({ pat, gistId, filename });
+    closeSettingsModal();
+    updateCloudUI();
+    showToast('已啟用雲端模式');
+    try {
+      const result = await gistGet();
+      if (result.empty) {
+        if (confirm('Gist 是空的。要把目前儀表板資料推上去當初始資料嗎？')) {
+          await syncToGist();
+        }
+      } else {
+        data = JSON.parse(result.content);
+        markClean();
+        renderTable();
+        showToast('已從 Gist 載入資料');
+      }
+    } catch (err) {
+      showToast('連線測試失敗：' + err.message, true);
+    }
+  }
+
+  function clearCloudConfig() {
+    if (!confirm('移除雲端設定？之後變回離線模式')) return;
+    setCloudConfig(null);
+    closeSettingsModal();
+    updateCloudUI();
+    showToast('已切回離線模式');
+  }
+
+  // PWA: 註冊 service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    });
+  }
+
+  // ========== Init ==========
+  async function init() {
+    if (isCloudMode()) {
+      updateCloudUI();
+      try {
+        const result = await gistGet();
+        if (!result.empty) {
+          data = JSON.parse(result.content);
+        }
+      } catch (err) {
+        console.error('Gist 載入失敗，使用本地資料', err);
+        showToast('Gist 載入失敗：' + err.message + '（暫用本地）', true);
+      }
+    }
+    renderTable();
+    updateCloudUI();
+    if (!isCloudMode()) checkBackupOnLoad();
+  }
+  init();
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeSettingsModal(); }
+  });
+</script>
+</body>
+</html>
