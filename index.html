@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0f1419">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="個股追蹤">
@@ -35,19 +35,19 @@
 </script>
 <style>
   :root {
-    --bg: #0f1419;
-    --bg-card: #1a2028;
-    --bg-card-2: #232b35;
-    --border: #2d3641;
-    --text: #e6edf3;
-    --text-dim: #8b95a4;
-    --text-muted: #5a6470;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --green: #22c55e;
-    --red: #ef4444;
-    --yellow: #eab308;
-    --orange: #f97316;
+    --bg: #ffffff;
+    --bg-card: #f8f9fb;
+    --bg-card-2: #eef1f5;
+    --border: #d8dde4;
+    --text: #1a1f24;
+    --text-dim: #5a6776;
+    --text-muted: #9097a3;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --green: #16a34a;
+    --red: #dc2626;
+    --yellow: #ca8a04;
+    --orange: #ea580c;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -146,24 +146,24 @@
     font-size: 11px; background: var(--bg-card-2); color: var(--text-dim);
     border: 1px solid var(--border);
   }
-  .industry-CCL { color: #60a5fa; border-color: #1e3a8a; background: rgba(59,130,246,0.1); }
-  .industry-銅箔 { color: #fb923c; border-color: #7c2d12; background: rgba(249,115,22,0.1); }
-  .industry-玻纖 { color: #c084fc; border-color: #581c87; background: rgba(168,85,247,0.1); }
-  .industry-化材 { color: #4ade80; border-color: #14532d; background: rgba(34,197,94,0.1); }
-  .industry-PCB { color: #facc15; border-color: #713f12; background: rgba(234,179,8,0.1); }
-  .industry-電子紙 { color: #2dd4bf; border-color: #134e4a; background: rgba(20,184,166,0.1); }
+  .industry-CCL { color: #1e40af; border-color: #93c5fd; background: rgba(59,130,246,0.12); }
+  .industry-銅箔 { color: #9a3412; border-color: #fdba74; background: rgba(249,115,22,0.12); }
+  .industry-玻纖 { color: #6b21a8; border-color: #d8b4fe; background: rgba(168,85,247,0.12); }
+  .industry-化材 { color: #166534; border-color: #86efac; background: rgba(34,197,94,0.12); }
+  .industry-PCB { color: #854d0e; border-color: #fde047; background: rgba(234,179,8,0.15); }
+  .industry-電子紙 { color: #115e59; border-color: #5eead4; background: rgba(20,184,166,0.12); }
 
   /* 台股慣例：紅漲綠跌 */
   .num-pos { color: var(--red); }
   .num-neg { color: var(--green); }
   .num-muted { color: var(--text-muted); }
   /* 預估/預測值 — 亮綠 */
-  .eps-predicted { color: #4ade80; }
-  .eps-predicted-bold { color: #4ade80; font-weight: 600; }
+  .eps-predicted { color: #15803d; }
+  .eps-predicted-bold { color: #15803d; font-weight: 600; }
   /* 明年目標價 — 桃紅 */
-  .target-price { color: #ec4899; font-weight: 600; }
+  .target-price { color: #be185d; font-weight: 600; }
   /* 股價 — 金黃 */
-  .stock-price { color: #fbbf24; font-weight: 500; }
+  .stock-price { color: #b45309; font-weight: 600; }
 
   /* Inline 編輯 */
   .editable-cell { position: relative; transition: background 0.1s; }
@@ -230,7 +230,7 @@
   .wl-stock-toggle:hover { opacity: 1; background: var(--bg-card-2); }
 
     .pe-overridden::after {
-    content: '*'; color: #fbbf24; margin-left: 2px;
+    content: '*'; color: #ca8a04; margin-left: 2px;
     font-size: 11px; vertical-align: super; font-style: normal;
   }
 
@@ -241,9 +241,9 @@
     width: 100%;
     height: 6px;
     background: linear-gradient(to right,
-      rgba(34,197,94,0.35) 0%,
-      rgba(255,255,255,0.06) 50%,
-      rgba(239,68,68,0.35) 100%);
+      rgba(22,163,74,0.30) 0%,
+      rgba(0,0,0,0.05) 50%,
+      rgba(220,38,38,0.30) 100%);
     border-radius: 3px;
     margin: 2px 0 4px;
   }
@@ -260,8 +260,8 @@
     transform: translate(-50%, -50%);
     box-shadow: 0 0 4px rgba(0,0,0,0.6);
   }
-  .distance-dot-current { background: white; z-index: 2; border: 1px solid rgba(0,0,0,0.3); }
-  .distance-dot-target { background: #ec4899; z-index: 3; }
+  .distance-dot-current { background: #374151; z-index: 2; border: 1px solid rgba(0,0,0,0.4); }
+  .distance-dot-target { background: #be185d; z-index: 3; }
   .distance-label { font-size: 10px; text-align: center; font-weight: 500; }
 
   /* 操作建議 chip */
@@ -273,9 +273,9 @@
     font-weight: 600;
     white-space: nowrap;
   }
-  .signal-buy { background: rgba(239,68,68,0.18); color: #ef4444; border: 1px solid rgba(239,68,68,0.5); }
-  .signal-hold { background: rgba(234,179,8,0.15); color: #eab308; border: 1px solid rgba(234,179,8,0.4); }
-  .signal-sell { background: rgba(34,197,94,0.18); color: #22c55e; border: 1px solid rgba(34,197,94,0.5); }
+  .signal-buy { background: rgba(220,38,38,0.12); color: #991b1b; border: 1px solid rgba(220,38,38,0.4); }
+  .signal-hold { background: rgba(202,138,4,0.14); color: #854d0e; border: 1px solid rgba(202,138,4,0.4); }
+  .signal-sell { background: rgba(22,163,74,0.12); color: #14532d; border: 1px solid rgba(22,163,74,0.4); }
 
   /* 月營收 hover 提示框 */
   .monthly-trigger {
@@ -414,7 +414,7 @@
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
-        <span id="unsavedIndicator" style="display:none;color:#fbbf24;margin-left:10px;">● 未同步</span>
+        <span id="unsavedIndicator" style="display:none;color:#ca8a04;margin-left:10px;">● 未同步</span>
       </div>
     </div>
     <div class="actions">

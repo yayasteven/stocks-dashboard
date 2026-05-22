@@ -6,10 +6,10 @@
 <title>個股詳細 · 載入中</title>
 <style>
   :root {
-    --bg: #0f1419; --bg-card: #1a2028; --bg-card-2: #232b35;
-    --border: #2d3641; --text: #e6edf3; --text-dim: #8b95a4; --text-muted: #5a6470;
-    --accent: #3b82f6; --green: #22c55e; --red: #ef4444; --yellow: #eab308;
-    --pink: #ec4899; --gold: #fbbf24;
+    --bg: #ffffff; --bg-card: #f8f9fb; --bg-card-2: #eef1f5;
+    --border: #d8dde4; --text: #1a1f24; --text-dim: #5a6776; --text-muted: #9097a3;
+    --accent: #2563eb; --green: #16a34a; --red: #dc2626; --yellow: #ca8a04;
+    --pink: #be185d; --gold: #b45309;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -226,8 +226,8 @@
   }
 
   // ===== Chart.js 共用設定 =====
-  Chart.defaults.color = '#8b95a4';
-  Chart.defaults.borderColor = '#2d3641';
+  Chart.defaults.color = '#5a6776';
+  Chart.defaults.borderColor = '#d8dde4';
   Chart.defaults.font.family = '-apple-system, "Segoe UI", sans-serif';
 
   // ===== 個股基本資訊 =====
@@ -273,8 +273,8 @@
           datasets: [{
             label: '收盤價',
             data: closes,
-            borderColor: '#fbbf24',
-            backgroundColor: 'rgba(251,191,36,0.1)',
+            borderColor: '#b45309',
+            backgroundColor: 'rgba(180,83,9,0.08)',
             borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
           }]
         },
@@ -320,8 +320,8 @@
         data: {
           labels,
           datasets: [
-            { label: '月營收（億）', data: values, backgroundColor: 'rgba(59,130,246,0.6)', yAxisID: 'y' },
-            { label: 'YoY %', data: yoyData, type: 'line', borderColor: '#ec4899', backgroundColor: 'transparent', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
+            { label: '月營收（億）', data: values, backgroundColor: 'rgba(37,99,235,0.55)', yAxisID: 'y' },
+            { label: 'YoY %', data: yoyData, type: 'line', borderColor: '#be185d', backgroundColor: 'transparent', pointRadius: 3, borderWidth: 2, yAxisID: 'y1' }
           ]
         },
         options: {
@@ -360,9 +360,9 @@
         data: {
           labels: dates,
           datasets: [
-            { label: '外資', data: dates.map(d => byDate[d].foreign/1000), backgroundColor: 'rgba(59,130,246,0.7)' },
-            { label: '投信', data: dates.map(d => byDate[d].trust/1000), backgroundColor: 'rgba(236,72,153,0.7)' },
-            { label: '自營商', data: dates.map(d => byDate[d].dealer/1000), backgroundColor: 'rgba(251,191,36,0.7)' }
+            { label: '外資', data: dates.map(d => byDate[d].foreign/1000), backgroundColor: 'rgba(37,99,235,0.65)' },
+            { label: '投信', data: dates.map(d => byDate[d].trust/1000), backgroundColor: 'rgba(190,24,93,0.65)' },
+            { label: '自營商', data: dates.map(d => byDate[d].dealer/1000), backgroundColor: 'rgba(180,83,9,0.6)' }
           ]
         },
         options: {
@@ -398,7 +398,7 @@
           labels,
           datasets: [{
             label: 'EPS', data: values,
-            backgroundColor: values.map(v => v >= 0 ? 'rgba(239,68,68,0.7)' : 'rgba(34,197,94,0.7)')
+            backgroundColor: values.map(v => v >= 0 ? 'rgba(220,38,38,0.65)' : 'rgba(22,163,74,0.65)')
           }]
         },
         options: {
@@ -437,8 +437,8 @@
         data: {
           labels,
           datasets: [
-            { label: 'PE', data: values, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.1 },
-            { label: '中位數', data: labels.map(_ => median), borderColor: '#fbbf24', borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
+            { label: 'PE', data: values, borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.1 },
+            { label: '中位數', data: labels.map(_ => median), borderColor: '#b45309', borderWidth: 1, pointRadius: 0, borderDash: [4,4] }
           ]
         },
         options: {
