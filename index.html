@@ -555,15 +555,10 @@
           </div>
           <div class="form-field">
             <label>產業</label>
-            <select name="industry">
-              <option value="CCL">CCL</option>
-              <option value="銅箔">銅箔</option>
-              <option value="玻纖">玻纖</option>
-              <option value="化材">化材</option>
-              <option value="PCB">PCB</option>
-              <option value="電子紙">電子紙</option>
-              <option value="其他">其他</option>
-            </select>
+            <div style="display:flex;gap:4px;align-items:stretch;">
+              <select name="industry" id="industrySelect" style="flex:1;"></select>
+              <button type="button" class="btn" onclick="addNewIndustry()" title="新增產業類別" style="padding:0 10px;font-weight:600;">+</button>
+            </div>
             <span id="finmindIndustryHint" style="font-size:10px;color:var(--text-muted);margin-top:2px;"></span>
           </div>
           <div class="form-field">
@@ -1437,13 +1432,50 @@
   }
 
   // ========== Modal / CRUD ==========
+  // v32: 動態 render 產業下拉（含現有 stocks 用過但 industries 沒列的，以防漏列）
+  function renderIndustryOptions(selectedValue) {
+    const sel = document.getElementById('industrySelect');
+    if (!sel) return;
+    const defined = data.industries || [];
+    const usedByStocks = [...new Set(data.stocks.map(s => s.industry).filter(Boolean))];
+    const merged = [...new Set([...defined, ...usedByStocks])];
+    // 確保「其他」恆在最後
+    const sorted = merged.filter(x => x !== '其他').concat(merged.includes('其他') ? ['其他'] : []);
+    sel.innerHTML = sorted.map(i => `<option value="${i}">${i}</option>`).join('');
+    if (selectedValue && sorted.includes(selectedValue)) sel.value = selectedValue;
+  }
+
+  // v32: 新增產業類別（同步寫進 data.industries，會跟資料一起存 / 同步）
+  function addNewIndustry() {
+    const name = (prompt('新增產業類別名稱（例：半導體、IC 設計、被動元件）：') || '').trim();
+    if (!name) return;
+    if (name.length > 10) { showToast('類別名稱請控制在 10 字以內', true); return; }
+    if (!data.industries) data.industries = [];
+    if (data.industries.includes(name)) {
+      showToast(`「${name}」已存在，已自動選取`);
+      renderIndustryOptions(name);
+      return;
+    }
+    data.industries.push(name);
+    markUnsavedSafely();
+    renderIndustryOptions(name);
+    showToast(`✓ 已新增「${name}」（記得最後按儲存）`);
+  }
+
+  // v32: 標記未儲存（用 codebase 既有的 flag + indicator）
+  function markUnsavedSafely() {
+    hasUnsavedChanges = true;
+    if (typeof updateUnsavedIndicator === 'function') updateUnsavedIndicator();
+  }
+
   function openAddModal() {
     editingCode = null;
     pendingFinmindData = null;
     document.getElementById('modalTitle').textContent = '新增個股';
     document.getElementById('deleteBtn').style.display = 'none';
     document.getElementById('stockForm').reset();
-    document.getElementById('autofillStatus').innerHTML = '輸入代號後按此鍵，自動帶入名稱、產業、股價、最近 12 個月營收、近 2 年 EPS';
+    renderIndustryOptions('CCL');
+    document.getElementById('autofillStatus').innerHTML = '輸入<strong>代號或名稱</strong>後按此鍵，自動帶入名稱、產業、股價、最近 12 個月營收、近 2 年 EPS';
     document.getElementById('autofillStatus').style.color = 'var(--text-dim)';
     document.getElementById('finmindIndustryHint').textContent = '';
     renderMonthlyInputs(null);
@@ -1462,7 +1494,7 @@
     const f = document.getElementById('stockForm');
     f.code.value = s.code;
     f.name.value = s.name;
-    f.industry.value = s.industry || 'CCL';
+    renderIndustryOptions(s.industry || 'CCL');
     f.capitalYi.value = s.capitalYi ?? '';
     f.price.value = s.price ?? '';
     f.priceUpdated.value = s.priceUpdated ?? '';
@@ -1658,7 +1690,8 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
   async function finmindFetch(dataset, code, startDate, endDate) {
     const token = getFinmindToken();
     if (!token) throw new Error('未設定 FinMind Token');
-    const params = new URLSearchParams({ dataset, data_id: code, token });
+    const params = new URLSearchParams({ dataset, token });
+    if (code) params.append('data_id', code);
     if (startDate) params.append('start_date', startDate);
     if (endDate) params.append('end_date', endDate);
     const res = await fetch(`${FINMIND_BASE}?${params}`);
@@ -1666,6 +1699,51 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     const json = await res.json();
     if (json.status !== 200) throw new Error(json.msg || 'API failed');
     return json.data || [];
+  }
+
+  // v32: 全台股清單 cache，給「以名稱反查代號」用
+  let _stockListCache = null;
+  async function searchStockByName(nameFragment) {
+    if (!_stockListCache) {
+      try {
+        _stockListCache = await finmindFetch('TaiwanStockInfo'); // 不帶 code → 拉全清單
+      } catch (e) {
+        console.warn('[v32] 拉全股票清單失敗', e);
+        return [];
+      }
+    }
+    const frag = (nameFragment || '').trim().toLowerCase();
+    if (!frag) return [];
+    const seen = new Set();
+    const out = [];
+    for (const r of _stockListCache) {
+      if (!r.stock_id || !r.stock_name) continue;
+      if (seen.has(r.stock_id)) continue;
+      // 只匹配上市櫃 4-6 位代號（排除權證 / ETF 警示等過長代號）
+      if (!/^[0-9]{4,6}$/.test(r.stock_id)) continue;
+      if (r.stock_name.toLowerCase().includes(frag)) {
+        seen.add(r.stock_id);
+        out.push({ stock_id: r.stock_id, stock_name: r.stock_name });
+      }
+    }
+    // 完全相符優先
+    out.sort((a, b) => {
+      const aExact = a.stock_name.toLowerCase() === frag ? 0 : 1;
+      const bExact = b.stock_name.toLowerCase() === frag ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+      return a.stock_id.localeCompare(b.stock_id);
+    });
+    return out;
+  }
+
+  // v32: 給名稱搜尋結果的「點我選擇」用 — 把代號塞回 code 欄
+  function pickStockFromSearch(code) {
+    const form = document.getElementById('stockForm');
+    if (!form) return false;
+    form.code.value = code;
+    document.getElementById('autofillStatus').innerHTML = `已選 <strong>${code}</strong>，請再次按「用 FinMind 自動帶入」抓取完整資料。`;
+    document.getElementById('autofillStatus').style.color = 'var(--accent)';
+    return false; // 防止 <a> 預設導航
   }
 
   // v32: 三層策略 — 白名單 > 保守 mapping > 名稱關鍵字
@@ -1704,18 +1782,46 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
 
   async function autofillFromFinmind() {
     const form = document.getElementById('stockForm');
-    const code = form.code.value.trim();
+    let code = form.code.value.trim();
+    const nameInput = form.name.value.trim();
     const statusEl = document.getElementById('autofillStatus');
     const hintEl = document.getElementById('finmindIndustryHint');
 
-    if (!code || !/^[0-9]{4,6}$/.test(code)) {
-      statusEl.textContent = '請先輸入有效代號（4-6 位數字）';
-      statusEl.style.color = 'var(--red)';
-      return;
-    }
     if (!getFinmindToken()) {
       statusEl.textContent = '未設定 FinMind Token（請在 data.js meta.finmindToken 內）';
       statusEl.style.color = 'var(--red)';
+      return;
+    }
+
+    // v32: 沒代號但有名稱 → 用名稱反查代號
+    if (!code && nameInput) {
+      statusEl.innerHTML = `用名稱「${nameInput}」搜尋中…`;
+      statusEl.style.color = 'var(--text-dim)';
+      const matches = await searchStockByName(nameInput);
+      if (matches.length === 0) {
+        statusEl.innerHTML = `<span style="color:var(--red)">找不到名稱含「${nameInput}」的個股。請試試其他關鍵字或直接輸入代號。</span>`;
+        return;
+      }
+      if (matches.length === 1) {
+        code = matches[0].stock_id;
+        form.code.value = code;
+        if (!form.name.value.trim()) form.name.value = matches[0].stock_name;
+        statusEl.innerHTML = `✓ 找到 <strong>${matches[0].stock_id} ${matches[0].stock_name}</strong>，繼續抓取完整資料…`;
+        // 落到下方繼續執行
+      } else {
+        // 多筆 → 列出候選讓使用者點選
+        const top = matches.slice(0, 10);
+        const list = top.map(m =>
+          `<a href="#" onclick="return pickStockFromSearch('${m.stock_id}')" style="display:inline-block;margin:3px 4px;padding:3px 9px;background:var(--bg-card-2);border:1px solid var(--border);border-radius:4px;text-decoration:none;color:var(--text);font-size:11.5px;">${m.stock_id} ${m.stock_name}</a>`
+        ).join('');
+        const more = matches.length > 10 ? `<span style="color:var(--text-muted);">（共 ${matches.length} 筆，顯示前 10）</span>` : '';
+        statusEl.innerHTML = `<span style="color:var(--accent);">找到 ${matches.length} 筆 ${more}，請點選：</span><br>${list}`;
+        return;
+      }
+    }
+
+    if (!code || !/^[0-9]{4,6}$/.test(code)) {
+      statusEl.innerHTML = '<span style="color:var(--red)">請輸入代號（4-6 位數字），或在名稱欄輸入要搜尋的公司名再按本鍵。</span>';
       return;
     }
 
