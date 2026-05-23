@@ -91,8 +91,8 @@
   .news-item .meta { font-size: 11px; color: var(--text-muted); }
   .news-item a { color: var(--accent); text-decoration: none; }
   .news-item a:hover { text-decoration: underline; }
-  .num-pos { color: var(--red); }
-  .num-neg { color: var(--green); }
+  .num-pos { color: var(--red); font-weight: 500; }
+  .num-neg { color: var(--green); font-weight: 500; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -538,45 +538,4 @@
       });
       document.getElementById('news').innerHTML = html;
     } catch (e) {
-      document.getElementById('news').innerHTML = '<div class="err">新聞載入失敗（可能不在免費版）: '+e.message+'</div>';
-    }
-  }
-
-  // ===== Init =====
-  async function init() {
-    if (!CODE) {
-      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red);">缺少股票代號參數。請從主畫面點股價進入。</div>';
-      return;
-    }
-    // 先試本地 data.js，再試 Gist
-    let dataObj = await loadConfig();
-    if (!dataObj || !dataObj.meta?.finmindToken) {
-      dataObj = await loadFromGist();
-    }
-    if (!dataObj) {
-      document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--red);">無法載入設定。請先回主畫面設定雲端 + FinMind Token。</div>';
-      return;
-    }
-    const stockMeta = dataObj.stocks.find(s => s.code === CODE);
-
-    // 抓 stock info
-    let info = null;
-    try {
-      const arr = await finmindFetch('TaiwanStockInfo', CODE);
-      info = arr[0];
-    } catch (e) { console.warn('TaiwanStockInfo 失敗', e); }
-
-    renderHeader(stockMeta, info);
-    renderPriceChart(365);
-    renderRevenueChart();
-    renderInstitutional();
-    renderEpsChart();
-    renderPerChart();
-    renderYield();
-    renderDividends();
-    renderNews();
-  }
-  init();
-</script>
-</body>
-</html>
+      document.getElementById('news').innerHTML = '<div class="err">新聞載入失敗（可能不在免費版）: '+e.message+'</div
