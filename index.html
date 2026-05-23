@@ -1430,41 +1430,9 @@
   }
 
   function renderDetail(s) {
-    // 季度資料
-    const qKeys = Object.keys(s.quarterly || {}).sort();
-    let qHtml = '<table class="detail-table"><thead><tr><th>季</th><th class="num">營收(億)</th><th class="num">EPS</th><th class="num">YoY</th></tr></thead><tbody>';
-    qKeys.forEach(q => {
-      const v = s.quarterly[q];
-      qHtml += `<tr><td>${q}</td><td class="num">${fmt(v.revenueYi)}</td><td class="num">${fmt(v.eps)}</td><td class="num">${fmt(v.yoy,{pct:true,signed:true})}</td></tr>`;
-    });
-    qHtml += '</tbody></table>';
-
-    // 月營收
-    const mKeys = Object.keys(s.monthlyRevenue || {}).sort();
-    let mHtml = '<table class="detail-table"><thead><tr><th>月份</th><th class="num">營收(億)</th><th class="num">YoY</th><th class="num">累計 YoY</th></tr></thead><tbody>';
-    mKeys.forEach(m => {
-      const v = s.monthlyRevenue[m];
-      mHtml += `<tr><td>${m}</td><td class="num">${fmt(v.revenueYi)}</td><td class="num">${fmt(v.yoy,{pct:true,signed:true})}</td><td class="num">${fmt(v.cumYoy,{pct:true,signed:true})}</td></tr>`;
-    });
-    mHtml += '</tbody></table>';
-
-    // 年度
-    let aHtml = '<table class="detail-table"><tbody>';
-    aHtml += `<tr><td>2024 營收</td><td class="num">${fmt(s.annualRevenueYi?.["2024"])} 億</td></tr>`;
-    aHtml += `<tr><td>2025 營收</td><td class="num">${fmt(s.annualRevenueYi?.["2025"])} 億</td></tr>`;
-    aHtml += `<tr><td>2026 預估</td><td class="num">${fmt(s.annualRevenueYi?.["2026_est"])} 億</td></tr>`;
-    aHtml += `<tr><td>2024 EPS</td><td class="num">${fmt(s.annualEps?.["2024"])}</td></tr>`;
-    aHtml += `<tr><td>2025 EPS</td><td class="num">${fmt(s.annualEps?.["2025"])}</td></tr>`;
-    aHtml += `<tr><td>2026 預估</td><td class="num">${fmt(s.annualEps?.["2026_est"])}</td></tr>`;
-    aHtml += `<tr><td>2027 預估</td><td class="num">${fmt(s.annualEps?.["2027_est"])}</td></tr>`;
-    aHtml += '</tbody></table>';
-
+    // v32: 移除年度/季度/月營收三欄表格，手機體驗優先。
+    // 詳細資料看 detail.html（點股價）；這裡只保留快速動作。
     return `
-      <div class="detail-grid">
-        <div class="detail-section"><h3>年度資料</h3>${aHtml}</div>
-        <div class="detail-section"><h3>季度資料</h3>${qHtml}</div>
-        <div class="detail-section"><h3>月營收歷史</h3>${mHtml}</div>
-      </div>
       <div class="detail-actions">
         <button class="btn" onclick="openEditModal('${s.code}')">✎ 編輯</button>
         <a class="btn" href="https://mops.twse.com.tw/mops/web/t05st10_ifrs?step=1&FILE_DAY=&queryName=&inputType=co_id&isnew=true&TYPEK=&co_id=${s.code}" target="_blank">公開資訊觀測站 ↗</a>
