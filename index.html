@@ -464,7 +464,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v31</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v32</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
@@ -678,9 +678,14 @@
           <input type="text" id="settingsGistFile" value="stocks-data.json" style="font-family:monospace;">
         </div>
         <div style="border-top:1px dashed var(--border);padding-top:12px;margin-top:4px;">
-          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:500;">⚡ 從設定碼 / 啟動連結 一鍵還原（免逐欄輸入）</label>
-          <textarea id="settingsRestoreInput" placeholder="貼上之前複製的啟動連結（網址）或設定碼，按下方按鈕自動填入上方三格" style="width:100%;height:50px;font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:5px;resize:vertical;"></textarea>
-          <button type="button" class="btn" onclick="restoreFromCode()" style="margin-top:6px;">📥 解析並填入</button>
+          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:500;">⚡ 從檔案一鍵還原（免逐欄輸入）</label>
+          <input type="file" id="settingsRestoreFile" accept=".txt,.json,text/plain,application/json" style="display:none" onchange="loadConfigFromFile(event)">
+          <button type="button" class="btn" onclick="document.getElementById('settingsRestoreFile').click()" style="width:100%;padding:10px;">
+            📁 選擇 登入輸入資訊.txt 自動填入
+          </button>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5;">
+            選一個含啟動連結（網址）或 Base64 設定碼的文字檔，會自動解析填入上方三格。
+          </div>
         </div>
         <div id="settingsStatus" style="font-size:12px;color:var(--text-dim);margin-top:4px;min-height:16px;"></div>
         <div style="margin-top:14px;padding:10px 12px;background:var(--bg-card-2);border:1px solid var(--border);border-radius:6px;font-size:11.5px;color:var(--text-dim);line-height:1.65;">
@@ -2129,44 +2134,71 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     showToast('已切回離線模式');
   }
 
-  // v31: 從設定碼/網址還原
-  function restoreFromCode() {
-    const input = document.getElementById('settingsRestoreInput').value.trim();
+  // v32: 從檔案載入（讀本機 txt → 呼叫 parser）
+  function loadConfigFromFile(event) {
+    const file = event.target.files && event.target.files[0];
     const statusEl = document.getElementById('settingsStatus');
-    if (!input) {
-      statusEl.innerHTML = '<span style="color:var(--red)">請先貼上設定碼</span>';
+    if (!file) return;
+    if (file.size > 50 * 1024) {
+      statusEl.innerHTML = '<span style="color:var(--red)">檔案太大，請確認選的是 .txt</span>';
       return;
     }
-    let encoded = input;
-    const hashMatch = input.match(/#cfg=([A-Za-z0-9+/=]+)/);
-    if (hashMatch) encoded = hashMatch[1];
-    // 如果是純 base64（沒有 # 前綴），也試著解
-    try {
-      const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-      if (decoded.pat && decoded.gistId) {
-        document.getElementById('settingsPAT').value = decoded.pat;
-        document.getElementById('settingsGistId').value = decoded.gistId;
-        document.getElementById('settingsGistFile').value = decoded.filename || 'stocks-data.json';
-        document.getElementById('settingsRestoreInput').value = '';
-        statusEl.innerHTML = '<span style="color:var(--green)">✓ 已自動填入。請點下方「儲存」完成。</span>';
-      } else {
-        statusEl.innerHTML = '<span style="color:var(--red)">設定碼缺少必要欄位（pat 或 gistId）</span>';
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      parseAndFillConfig(String(e.target.result || ''), file.name);
+      event.target.value = ''; // 清空 input 讓下次能再選同檔
+    };
+    reader.onerror = () => {
+      statusEl.innerHTML = '<span style="color:var(--red)">讀檔失敗</span>';
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  // v32: 解析設定字串 → 填入三格（可重用，來源可為檔案內容）
+  function parseAndFillConfig(rawInput, sourceLabel) {
+    const text = (rawInput || '').trim();
+    const statusEl = document.getElementById('settingsStatus');
+    const src = sourceLabel ? `（來源：${sourceLabel}）` : '';
+    if (!text) {
+      statusEl.innerHTML = '<span style="color:var(--red)">檔案是空的' + src + '</span>';
+      return;
+    }
+    // 1) 先找 #cfg= 之後的 base64
+    let encoded = null;
+    const hashMatch = text.match(/#cfg=([A-Za-z0-9+/=]+)/);
+    if (hashMatch) {
+      encoded = hashMatch[1];
+    } else {
+      // 2) 找檔案裡看起來像純 base64 的長字串（容忍周圍有其他文字）
+      const tokens = text.split(/\s+/).filter(s => s.length >= 40);
+      for (const tk of tokens) {
+        if (/^[A-Za-z0-9+/=]+$/.test(tk)) { encoded = tk; break; }
       }
-    } catch (e) {
-      // 試試看是不是純 JSON
+    }
+    if (encoded) {
       try {
-        const j = JSON.parse(input);
-        if (j.pat && j.gistId) {
-          document.getElementById('settingsPAT').value = j.pat;
-          document.getElementById('settingsGistId').value = j.gistId;
-          document.getElementById('settingsGistFile').value = j.filename || 'stocks-data.json';
-          document.getElementById('settingsRestoreInput').value = '';
-          statusEl.innerHTML = '<span style="color:var(--green)">✓ 已從 JSON 還原</span>';
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+        if (decoded.pat && decoded.gistId) {
+          document.getElementById('settingsPAT').value = decoded.pat;
+          document.getElementById('settingsGistId').value = decoded.gistId;
+          document.getElementById('settingsGistFile').value = decoded.filename || 'stocks-data.json';
+          statusEl.innerHTML = '<span style="color:var(--green)">✓ 已自動填入' + src + '，請點下方「儲存」完成。</span>';
           return;
         }
-      } catch (_) {}
-      statusEl.innerHTML = '<span style="color:var(--red)">無法解析。請確認貼上的是完整的啟動連結或設定碼。</span>';
+      } catch (_) { /* 落到下方再試 JSON */ }
     }
+    // 3) 試試純 JSON 格式
+    try {
+      const j = JSON.parse(text);
+      if (j.pat && j.gistId) {
+        document.getElementById('settingsPAT').value = j.pat;
+        document.getElementById('settingsGistId').value = j.gistId;
+        document.getElementById('settingsGistFile').value = j.filename || 'stocks-data.json';
+        statusEl.innerHTML = '<span style="color:var(--green)">✓ 已從 JSON 還原' + src + '</span>';
+        return;
+      }
+    } catch (_) {}
+    statusEl.innerHTML = '<span style="color:var(--red)">無法解析' + src + '。請確認檔案內含完整啟動連結或設定碼。</span>';
   }
 
   // v23: 啟動連結
