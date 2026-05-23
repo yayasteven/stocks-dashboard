@@ -464,7 +464,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v30</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v31</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
@@ -676,6 +676,11 @@
         <div class="form-field">
           <label>Gist 檔名</label>
           <input type="text" id="settingsGistFile" value="stocks-data.json" style="font-family:monospace;">
+        </div>
+        <div style="border-top:1px dashed var(--border);padding-top:12px;margin-top:4px;">
+          <label style="display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;font-weight:500;">⚡ 從設定碼 / 啟動連結 一鍵還原（免逐欄輸入）</label>
+          <textarea id="settingsRestoreInput" placeholder="貼上之前複製的啟動連結（網址）或設定碼，按下方按鈕自動填入上方三格" style="width:100%;height:50px;font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:5px;resize:vertical;"></textarea>
+          <button type="button" class="btn" onclick="restoreFromCode()" style="margin-top:6px;">📥 解析並填入</button>
         </div>
         <div id="settingsStatus" style="font-size:12px;color:var(--text-dim);margin-top:4px;min-height:16px;"></div>
       </div>
@@ -2116,6 +2121,46 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     closeSettingsModal();
     updateCloudUI();
     showToast('已切回離線模式');
+  }
+
+  // v31: 從設定碼/網址還原
+  function restoreFromCode() {
+    const input = document.getElementById('settingsRestoreInput').value.trim();
+    const statusEl = document.getElementById('settingsStatus');
+    if (!input) {
+      statusEl.innerHTML = '<span style="color:var(--red)">請先貼上設定碼</span>';
+      return;
+    }
+    let encoded = input;
+    const hashMatch = input.match(/#cfg=([A-Za-z0-9+/=]+)/);
+    if (hashMatch) encoded = hashMatch[1];
+    // 如果是純 base64（沒有 # 前綴），也試著解
+    try {
+      const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+      if (decoded.pat && decoded.gistId) {
+        document.getElementById('settingsPAT').value = decoded.pat;
+        document.getElementById('settingsGistId').value = decoded.gistId;
+        document.getElementById('settingsGistFile').value = decoded.filename || 'stocks-data.json';
+        document.getElementById('settingsRestoreInput').value = '';
+        statusEl.innerHTML = '<span style="color:var(--green)">✓ 已自動填入。請點下方「儲存」完成。</span>';
+      } else {
+        statusEl.innerHTML = '<span style="color:var(--red)">設定碼缺少必要欄位（pat 或 gistId）</span>';
+      }
+    } catch (e) {
+      // 試試看是不是純 JSON
+      try {
+        const j = JSON.parse(input);
+        if (j.pat && j.gistId) {
+          document.getElementById('settingsPAT').value = j.pat;
+          document.getElementById('settingsGistId').value = j.gistId;
+          document.getElementById('settingsGistFile').value = j.filename || 'stocks-data.json';
+          document.getElementById('settingsRestoreInput').value = '';
+          statusEl.innerHTML = '<span style="color:var(--green)">✓ 已從 JSON 還原</span>';
+          return;
+        }
+      } catch (_) {}
+      statusEl.innerHTML = '<span style="color:var(--red)">無法解析。請確認貼上的是完整的啟動連結或設定碼。</span>';
+    }
   }
 
   // v23: 啟動連結
