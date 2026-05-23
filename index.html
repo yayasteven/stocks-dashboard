@@ -1674,17 +1674,33 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     return json.data || [];
   }
 
-  function suggestIndustry(finmindIndustry, stockName='') {
+  // v32: 三層策略 — 白名單 > 保守 mapping > 名稱關鍵字
+  // 注意「FinMind 大類 → 自訂細類」常常是一對多，硬對應會出錯（例如光電業≠電子紙）
+  function suggestIndustry(finmindIndustry, stockName='', stockCode='') {
+    // 1) 已追蹤個股白名單（最高優先，避免 FinMind 分類誤判）
+    const codeMap = {
+      '2383': 'CCL',   '6274': 'CCL',                   // CCL
+      '8358': '銅箔',
+      '1815': '玻纖',
+      '4722': '化材',
+      '8069': '電子紙',
+      // 新增白名單請依實際歸類加在這
+    };
+    if (codeMap[stockCode]) return codeMap[stockCode];
+
+    // 2) FinMind 產業類別 → 自訂分類（只保留高信心對應）
+    //    刻意不對應「光電業」「電子零組件業」「半導體業」等大類，避免誤判
     const map = {
       '玻璃陶瓷工業': '玻纖', '玻璃陶瓷業': '玻纖', '玻璃工業': '玻纖',
       '化學工業': '化材', '化學生技醫療': '化材',
-      '光電業': '電子紙',
     };
     if (map[finmindIndustry]) return map[finmindIndustry];
+
+    // 3) 公司名稱關鍵字（最後備援）
     if (/銅/.test(stockName)) return '銅箔';
     if (/玻|纖/.test(stockName)) return '玻纖';
     if (/化/.test(stockName)) return '化材';
-    if (/(電子紙|顯示|光電)/.test(stockName)) return '電子紙';
+    if (/電子紙/.test(stockName)) return '電子紙';
     return null;
   }
 
@@ -1733,7 +1749,7 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
         const i = info.value[0];
         if (i.stock_name) { form.name.value = i.stock_name; summary.push(`名稱:${i.stock_name}`); }
         if (i.industry_category) {
-          const suggested = suggestIndustry(i.industry_category, i.stock_name);
+          const suggested = suggestIndustry(i.industry_category, i.stock_name, code);
           if (suggested) form.industry.value = suggested;
           hintEl.textContent = `FinMind 分類: ${i.industry_category}` + (suggested ? ` → 建議「${suggested}」` : '（請手動選擇）');
           // 備註若空，用 FinMind 產業類別當預填，使用者再編輯
