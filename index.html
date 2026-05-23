@@ -423,7 +423,7 @@
   .form-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
   .form-field { display: flex; flex-direction: column; }
   .form-field label {
-    font-size: 11px; color: var(--text-dim); margin-bottom: 4px;
+    font-size: 11px; color: var(--text-dim); margin-bottom: 6px;
     text-transform: uppercase; letter-spacing: 0.3px;
   }
   .form-field input, .form-field select, .form-field textarea {
@@ -435,12 +435,12 @@
     outline: none; border-color: var(--accent);
   }
   .section-divider {
-    grid-column: 1 / -1; margin: 8px 0 -4px 0;
+    grid-column: 1 / -1; margin: 14px 0 8px 0;
     font-size: 12px; color: var(--text-dim); font-weight: 500;
     text-transform: uppercase; letter-spacing: 0.5px;
   }
   .section-divider::after {
-    content: ""; display: block; height: 1px; background: var(--border); margin-top: 4px;
+    content: ""; display: block; height: 1px; background: var(--border); margin-top: 6px;
   }
 
   /* Toast */
@@ -466,7 +466,7 @@
     <div>
       <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v32</span></h1>
       <div class="meta">
-        上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔
+        上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔 · <span id="industryCount">0</span> 類
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
         <span id="unsavedIndicator" style="display:none;color:#ca8a04;margin-left:10px;">● 未同步</span>
       </div>
@@ -484,9 +484,6 @@
     </div>
   </div>
 
-  <div class="summary" id="summaryCards"></div>
-
-  
   <div class="watchlist-tabs" id="watchlistTabs"></div>
 
   <div class="table-wrap">
@@ -816,11 +813,8 @@
     document.getElementById('lastUpdated').textContent = data.meta?.lastUpdated || '—';
     document.getElementById('stockCount').textContent = data.stocks.length;
     const industryCount = new Set(data.stocks.map(x => x.industry)).size;
-    const sc = document.getElementById('summaryCards');
-    sc.innerHTML = `
-      <div class="summary-card"><div class="label">追蹤檔數</div><div class="value">${data.stocks.length}</div></div>
-      <div class="summary-card"><div class="label">產業類別</div><div class="value">${industryCount}</div></div>
-    `;
+    // v32: summary cards 已併入 header meta，省下整塊垂直空間
+    document.getElementById('industryCount').textContent = industryCount;
     // Industry filter options
     const indSel = document.getElementById('industryFilter');
     const currentVal = indSel.value;
