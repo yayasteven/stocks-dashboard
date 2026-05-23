@@ -538,4 +538,51 @@
       });
       document.getElementById('news').innerHTML = html;
     } catch (e) {
-      document.getElementById('news').innerHTML = '<div class="err">新聞載入失敗（可能不在免費版）: '+e.message+'</div
+      document.getElementById('news').innerHTML = '<div class="err">新聞載入失敗（可能不在免費版）: '+e.message+'</div>';
+    }
+  }
+
+  // ===== Main 入口 =====
+  async function main() {
+    if (!CODE) {
+      document.body.innerHTML = '<div class="err" style="padding:40px;text-align:center;">缺少 ?code=股票代號 參數</div>';
+      return;
+    }
+
+    // 1. 載入 data.js（取得 finmind token 與本地 stock meta）
+    let data = await loadConfig();
+    if (!data) data = await loadFromGist();
+    const stockMeta = data?.stocks?.find(s => s.code === CODE) || null;
+
+    // 2. 拉一次 stock info 取得正式名稱與產業（FinMind TaiwanStockInfo）
+    let info = null;
+    try {
+      const infoRows = await finmindFetch('TaiwanStockInfo', CODE);
+      info = infoRows && infoRows.length ? infoRows[0] : null;
+    } catch (e) {
+      console.warn('TaiwanStockInfo 載入失敗', e);
+    }
+
+    // 3. 渲染 header（即使 info 失敗也用 stockMeta）
+    renderHeader(stockMeta, info);
+
+    // 4. 並行載入所有圖表
+    renderPriceChart(365);
+    renderRevenueChart();
+    renderInstitutional();
+    renderEpsChart();
+    renderPerChart();
+    renderYield();
+    renderDividends();
+    renderNews();
+  }
+
+  // 啟動
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', main);
+  } else {
+    main();
+  }
+</script>
+</body>
+</html>

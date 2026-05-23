@@ -25,7 +25,7 @@ const STOCK_DATA = {
     {
       "code": "2383",
       "name": "台光電",
-      "industry": "電子紙",
+      "industry": "CCL",
       "capitalYi": 35.8,
       "price": 5005,
       "priceUpdated": "2026-05-22",
