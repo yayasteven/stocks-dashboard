@@ -174,10 +174,11 @@
     padding: 6px 10px; border-radius: 5px; font-size: 13px;
   }
   .toolbar input { flex: 1; min-width: 120px; max-width: 280px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  /* v32: 表格緊湊化 — 統一 padding & 字體，視覺更一致 */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
   thead { background: var(--bg-card-2); }
   th {
-    text-align: left; padding: 10px 12px; font-weight: 500; color: var(--text-dim);
+    text-align: left; padding: 7px 10px; font-weight: 500; color: var(--text-dim);
     border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer;
     user-select: none; font-size: 12px;
   }
@@ -187,10 +188,12 @@
   th.sort-asc::after { content: " ↑"; opacity: 1; color: var(--accent); }
   th.sort-desc::after { content: " ↓"; opacity: 1; color: var(--accent); }
   td {
-    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    padding: 7px 10px; border-bottom: 1px solid var(--border);
     white-space: nowrap;
   }
-  tr.stock-row { cursor: pointer; transition: background 0.1s; }
+  /* v32: 強制統一列高，避免「距離 slider」有無資料導致行高差 ~11px */
+  tr.stock-row { cursor: pointer; transition: background 0.1s; height: 42px; }
+  tr.stock-row td { vertical-align: middle; }
   tr.stock-row:hover { background: rgba(37,99,235,0.06); }
   tr.detail-row td { padding: 0; background: var(--bg); }
   .stock-code { color: var(--accent); font-weight: 600; }
@@ -464,7 +467,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v32</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v33</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔 · <span id="industryCount">0</span> 類
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
