@@ -2345,6 +2345,92 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
   })();
 
   // ========== Init ==========
+  // v32: 開頁面時背景刷新所有 stocks 的最新收盤價（只動 price / priceUpdated）
+  // 設計考量：
+  //  - 30 分鐘 throttle（避免頻繁 reload 浪費 quota）
+  //  - 只更新 priceUpdated < today 的檔（已是今天就跳過）
+  //  - 失敗的個股不影響其他檔
+  //  - 雲端模式：成功後自動 syncToGist（讓其他裝置也看到最新）
+  //  - 離線模式：只 markUnsaved，使用者自己決定要不要存
+  async function autoRefreshPrices() {
+    if (!getFinmindToken()) return;
+    if (!data.stocks || !data.stocks.length) return;
+
+    const THROTTLE_KEY = 'lastAutoRefreshTs';
+    const THROTTLE_MS = 30 * 60 * 1000; // 30 分鐘
+    const lastTs = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
+    if (Date.now() - lastTs < THROTTLE_MS) {
+      console.log('[v32] auto-refresh: 30 分鐘內已執行過，跳過');
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0,10);
+    const targets = data.stocks.filter(s => !s.priceUpdated || s.priceUpdated < today);
+    if (targets.length === 0) {
+      console.log('[v32] auto-refresh: 所有股價皆為今天，無需更新');
+      localStorage.setItem(THROTTLE_KEY, String(Date.now()));
+      return;
+    }
+
+    // 先記時間戳，避免錯誤後反覆重試
+    localStorage.setItem(THROTTLE_KEY, String(Date.now()));
+
+    const statusEl = document.getElementById('cloudStatus');
+    const setStatus = (txt, color) => {
+      if (!statusEl) return;
+      statusEl.textContent = txt;
+      statusEl.style.color = color || 'var(--text-dim)';
+    };
+
+    setStatus(`🔄 背景更新股價 (0/${targets.length})…`);
+
+    let updated = 0, failed = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const s = targets[i];
+      try {
+        const prices = await finmindFetch('TaiwanStockPrice', s.code, isoDaysAgo(7), today);
+        if (prices && prices.length) {
+          const sorted = [...prices].sort((a,b) => b.date.localeCompare(a.date));
+          const latest = sorted[0];
+          if (latest.close && latest.date && latest.date !== s.priceUpdated) {
+            s.price = latest.close;
+            s.priceUpdated = latest.date;
+            updated++;
+          }
+        }
+      } catch (e) {
+        console.warn(`[v32] 拉 ${s.code} 股價失敗`, e);
+        failed++;
+      }
+      setStatus(`🔄 背景更新股價 (${i+1}/${targets.length})…`);
+    }
+
+    if (updated === 0) {
+      setStatus(failed ? `⚠ ${failed} 檔股價更新失敗` : '', failed ? 'var(--yellow)' : '');
+      setTimeout(() => setStatus('', ''), 4000);
+      return;
+    }
+
+    // 有更新 → 重畫表格 + 標記未儲存
+    renderTable();
+    hasUnsavedChanges = true;
+    updateUnsavedIndicator();
+
+    // 雲端模式 → 自動 push 到 Gist
+    if (isCloudMode() && typeof syncToGist === 'function') {
+      try {
+        await syncToGist();
+        setStatus(`✓ ${updated} 檔股價已更新並同步${failed ? `（${failed} 檔失敗）` : ''}`, 'var(--green)');
+      } catch (e) {
+        console.warn('[v32] 自動同步失敗', e);
+        setStatus(`✓ ${updated} 檔已更新（同步失敗，請手動按 ⬆ 同步）`, 'var(--yellow)');
+      }
+    } else {
+      setStatus(`✓ ${updated} 檔股價已更新（離線模式，未自動存）`, 'var(--green)');
+    }
+    setTimeout(() => setStatus('', ''), 8000);
+  }
+
   async function init() {
     if (isCloudMode()) {
       updateCloudUI();
@@ -2367,6 +2453,9 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     updateAddBtnLabel();
     updateCloudUI();
     if (!isCloudMode()) checkBackupOnLoad();
+
+    // v32: 延遲 1.5 秒觸發背景股價刷新（避免阻塞首次 render）
+    setTimeout(() => { autoRefreshPrices(); }, 1500);
   }
   init();
   document.addEventListener('keydown', e => {
