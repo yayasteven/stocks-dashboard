@@ -683,11 +683,17 @@
           <button type="button" class="btn" onclick="restoreFromCode()" style="margin-top:6px;">📥 解析並填入</button>
         </div>
         <div id="settingsStatus" style="font-size:12px;color:var(--text-dim);margin-top:4px;min-height:16px;"></div>
+        <div style="margin-top:14px;padding:10px 12px;background:var(--bg-card-2);border:1px solid var(--border);border-radius:6px;font-size:11.5px;color:var(--text-dim);line-height:1.65;">
+          <div style="color:var(--text);font-weight:600;margin-bottom:4px;">💡「啟動連結」是一次性設定碼，不是日常書籤</div>
+          點開連結後，<code style="font-family:monospace;">#cfg=...</code> 會被自動從網址列移除以保護 PAT，所以當下加書籤只會抓到 base URL。<br>
+          <strong style="color:var(--text);">新裝置設定流程：</strong>把連結存在私人筆記 → 在新裝置貼到網址列開啟 → 寫入 localStorage 後，日常書籤<strong>只要存 base URL</strong>。<br>
+          <span style="color:var(--red);">⚠ PAT 等於 GitHub 帳號的部分權限金鑰</span>，別放進會被同步 / 截圖 / 分享的地方（瀏覽器書籤同步、截圖到群組、雲端記事 App 等）。
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn danger" onclick="clearCloudConfig()" id="clearCloudBtn" style="display:none">移除設定（改回離線）</button>
-      <button class="btn" onclick="copySetupLink()" id="copyLinkBtn" style="display:none" title="產生啟動連結，加入書籤後永不重設">📋 複製啟動連結</button>
+      <button class="btn" onclick="copySetupLink()" id="copyLinkBtn" style="display:none" title="產生一次性啟動連結，給新裝置初次設定用（請勿直接加入書籤）">📋 複製啟動連結</button>
       <button class="btn" onclick="testCloudConnection()">🔌 測試連線</button>
       <button class="btn primary" onclick="saveCloudConfig()">儲存</button>
     </div>
@@ -2171,7 +2177,7 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     const url = `${location.origin}${location.pathname}#cfg=${encoded}`;
     navigator.clipboard.writeText(url).then(() => {
       const statusEl = document.getElementById('settingsStatus');
-      statusEl.innerHTML = '<span style="color:var(--green)">✓ 啟動連結已複製。<br>加進瀏覽器書籤 / iPhone 主畫面，之後點書籤就自動套用設定。</span>';
+      statusEl.innerHTML = '<span style="color:var(--green)">✓ 啟動連結已複製。</span><br><span style="font-size:11px;line-height:1.6;">這是<strong>一次性啟動碼</strong>，把它存到私人筆記/檔案，在新裝置貼到網址列即可寫入設定。<strong style="color:var(--red);">不要直接加書籤</strong>（hash 會被自動洗掉以保護 PAT）。日常書籤只需要 base URL。</span>';
     }).catch(err => {
       const statusEl = document.getElementById('settingsStatus');
       statusEl.innerHTML = `<span style="color:var(--text-dim)">複製失敗，請手動複製這串：</span><br><textarea style="width:100%;height:60px;font-size:10px;font-family:monospace;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;" onclick="this.select()">${url}</textarea>`;
