@@ -494,7 +494,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v34</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v35</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔 · <span id="industryCount">0</span> 類
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
@@ -2507,14 +2507,20 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
 
     const THROTTLE_KEY = 'lastAutoRefreshTs';
     const THROTTLE_MS = 30 * 60 * 1000; // 30 分鐘
+    const today = new Date().toISOString().slice(0,10);
+
+    // v34: 有缺漲跌資料的股票就強制 backfill（繞過 throttle，否則 v33 已跑過的 throttle 會擋住所有人）
+    const needsBackfill = data.stocks.some(s => s.priceChange == null);
     const lastTs = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
-    if (Date.now() - lastTs < THROTTLE_MS) {
-      console.log('[v32] auto-refresh: 30 分鐘內已執行過，跳過');
+    if (!needsBackfill && Date.now() - lastTs < THROTTLE_MS) {
+      console.log('[v34] auto-refresh: 30 分鐘內已執行過且無 backfill 需求，跳過');
       return;
     }
+    if (needsBackfill) {
+      console.log('[v34] auto-refresh: 偵測到缺漲跌資料的股票，強制 backfill');
+    }
 
-    const today = new Date().toISOString().slice(0,10);
-    // v34: 即使今天已更新，但 priceChange 缺漏（舊資料 / 新功能 backfill）也納入更新清單
+    // 缺 priceChange 的股票全納入，已更新但今天最新的不重抓
     const targets = data.stocks.filter(s => {
       if (!s.priceUpdated || s.priceUpdated < today) return true;
       if (s.priceChange == null) return true;
