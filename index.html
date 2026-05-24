@@ -241,11 +241,11 @@
   .stock-price.is-down { color: var(--green) !important; }
   [data-theme="dark"] .stock-price.is-up { color: #f87171 !important; }
   [data-theme="dark"] .stock-price.is-down { color: #4ade80 !important; }
-  /* v35: 當日漲跌幅 — 改放股價右側、上下排列（上:金額 / 下:%），字體比照 EPS 小字 */
+  /* v35: 當日漲跌幅 — 獨立欄位，上下排列（上:金額 / 下:%），字體比照 EPS 小字 */
   .price-change {
-    display: inline-flex; flex-direction: column; align-items: flex-start;
-    font-size: 9px; line-height: 1.15; margin-left: 4px; font-weight: 500;
-    vertical-align: middle; letter-spacing: -0.2px;
+    display: flex; flex-direction: column; align-items: flex-end;
+    font-size: 11px; line-height: 1.25; font-weight: 500;
+    letter-spacing: -0.2px;
   }
   .price-change.num-pos { color: var(--red); }
   .price-change.num-neg { color: var(--green); }
@@ -544,6 +544,7 @@
           <th class="num sortable" data-sort="capitalYi">股本(億)</th>
           <th class="num sortable" data-sort="grossMargin" title="TTM 4 季滾動毛利率 = 4 季毛利 / 4 季營收">毛利率</th>
           <th class="num sortable" data-sort="price">股價</th>
+          <th class="num sortable" data-sort="priceChangePct" title="今日漲跌幅（依 % 排序）">漲跌</th>
           <th class="num sortable" data-sort="eps_2024">2024 EPS</th>
           <th class="num sortable" data-sort="eps_2025">2025 EPS</th>
           <th class="num sortable" data-sort="eps_2026">2026E EPS</th>
@@ -1442,7 +1443,8 @@
         <td>${industryChipHtml(s.industry)}</td>
         <td class="num" title="股本由 FinMind 抓取，不可手動修改">${fmt(s.capitalYi, {digits:1})}</td>
         <td class="num" title="TTM 4 季滾動毛利率（隨季報更新）">${(s.grossMargin !== null && s.grossMargin !== undefined) ? (s.grossMargin * 100).toFixed(1) + '%' : '<span class="num-muted">—</span>'}</td>
-        <td class="num stock-price ${priceTrendClass(s)}" title="點擊查看 ${s.code} 個股詳細頁"><a href="detail.html?code=${s.code}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(251,191,36,0.3);text-underline-offset:3px;" onclick="event.stopPropagation()">${fmt(s.price, {digits:2})}</a>${priceChangeHtml(s)}</td>
+        <td class="num stock-price ${priceTrendClass(s)}" title="點擊查看 ${s.code} 個股詳細頁"><a href="detail.html?code=${s.code}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(251,191,36,0.3);text-underline-offset:3px;" onclick="event.stopPropagation()">${fmt(s.price, {digits:2})}</a></td>
+        <td class="num">${priceChangeHtml(s)}</td>
         <td class="num" title="2024 EPS 歷史值，由 FinMind 自動帶入，不可手動修改">${epsCell(eps["2024"], null)}</td>
         <td class="num" title="2025 EPS 歷史值，由 FinMind 自動帶入，不可手動修改">${epsCell(eps["2025"], eps["2024"])}</td>
         <td ${edit('eps_2026_est')}>${epsCell(eps["2026_est"], eps["2025"], true)}</td>
@@ -1463,7 +1465,7 @@
       tbody.appendChild(row);
     });
     if (arr.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="17" style="text-align:center;padding:32px;color:var(--text-dim);">沒有符合條件的個股。</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;padding:32px;color:var(--text-dim);">沒有符合條件的個股。</td></tr>';
     }
   }
 
@@ -1520,7 +1522,7 @@
     const detailRow = document.createElement('tr');
     detailRow.className = 'detail-row';
     detailRow.dataset.detail = code;
-    detailRow.innerHTML = `<td colspan="17"><div class="detail-panel">${renderDetail(stock)}</div></td>`;
+    detailRow.innerHTML = `<td colspan="18"><div class="detail-panel">${renderDetail(stock)}</div></td>`;
     row.after(detailRow);
   }
 
