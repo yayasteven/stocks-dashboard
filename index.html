@@ -91,12 +91,19 @@
   [data-theme="dark"] .eps-predicted, [data-theme="dark"] .eps-predicted-bold { color: #4ade80 !important; }
   [data-theme="dark"] .pe-overridden::after { color: #fbbf24 !important; }
   [data-theme="dark"] #unsavedIndicator { color: #fbbf24 !important; }
-  [data-theme="dark"] .industry-CCL { color: #60a5fa; border-color: #1e3a8a; background: rgba(37,99,235,0.12); }
-  [data-theme="dark"] .industry-銅箔 { color: #fb923c; border-color: #7c2d12; background: rgba(249,115,22,0.15); }
-  [data-theme="dark"] .industry-玻纖 { color: #c084fc; border-color: #581c87; background: rgba(168,85,247,0.15); }
-  [data-theme="dark"] .industry-化材 { color: #15803d; border-color: #14532d; background: rgba(34,197,94,0.15); }
-  [data-theme="dark"] .industry-PCB { color: #facc15; border-color: #713f12; background: rgba(234,179,8,0.15); }
-  [data-theme="dark"] .industry-電子紙 { color: #2dd4bf; border-color: #134e4a; background: rgba(20,184,166,0.15); }
+  /* v34: dark mode 對應 12 色 */
+  [data-theme="dark"] .industry-color-0  { color: #60a5fa; border-color: #1e3a8a; background: rgba(37,99,235,0.12); }
+  [data-theme="dark"] .industry-color-1  { color: #fb923c; border-color: #7c2d12; background: rgba(249,115,22,0.15); }
+  [data-theme="dark"] .industry-color-2  { color: #c084fc; border-color: #581c87; background: rgba(168,85,247,0.15); }
+  [data-theme="dark"] .industry-color-3  { color: #4ade80; border-color: #14532d; background: rgba(34,197,94,0.15); }
+  [data-theme="dark"] .industry-color-4  { color: #facc15; border-color: #713f12; background: rgba(234,179,8,0.15); }
+  [data-theme="dark"] .industry-color-5  { color: #2dd4bf; border-color: #134e4a; background: rgba(20,184,166,0.15); }
+  [data-theme="dark"] .industry-color-6  { color: #f87171; border-color: #7f1d1d; background: rgba(239,68,68,0.15); }
+  [data-theme="dark"] .industry-color-7  { color: #f472b6; border-color: #831843; background: rgba(236,72,153,0.15); }
+  [data-theme="dark"] .industry-color-8  { color: #818cf8; border-color: #312e81; background: rgba(99,102,241,0.15); }
+  [data-theme="dark"] .industry-color-9  { color: #34d399; border-color: #064e3b; background: rgba(16,185,129,0.15); }
+  [data-theme="dark"] .industry-color-10 { color: #fb923c; border-color: #78350f; background: rgba(217,119,6,0.15); }
+  [data-theme="dark"] .industry-color-11 { color: #94a3b8; border-color: #1e293b; background: rgba(100,116,139,0.15); }
   [data-theme="dark"] .signal-buy { background: rgba(239,68,68,0.18); color: #f87171; border-color: rgba(239,68,68,0.5); }
   [data-theme="dark"] .signal-hold { background: rgba(234,179,8,0.18); color: #fde047; border-color: rgba(234,179,8,0.5); }
   [data-theme="dark"] .signal-sell { background: rgba(34,197,94,0.18); color: #15803d; border-color: rgba(34,197,94,0.5); }
@@ -204,12 +211,19 @@
     font-size: 11px; background: var(--bg-card-2); color: var(--text-dim);
     border: 1px solid var(--border);
   }
-  .industry-CCL { color: #1e40af; border-color: #93c5fd; background: rgba(59,130,246,0.12); }
-  .industry-銅箔 { color: #9a3412; border-color: #fdba74; background: rgba(249,115,22,0.12); }
-  .industry-玻纖 { color: #6b21a8; border-color: #d8b4fe; background: rgba(168,85,247,0.12); }
-  .industry-化材 { color: #166534; border-color: #86efac; background: rgba(34,197,94,0.12); }
-  .industry-PCB { color: #854d0e; border-color: #fde047; background: rgba(234,179,8,0.15); }
-  .industry-電子紙 { color: #115e59; border-color: #5eead4; background: rgba(20,184,166,0.12); }
+  /* v34: 12 色 palette - 經典 6 色 (0-5) 給 CCL/銅箔/玻纖/化材/PCB/電子紙；6-11 給新類別 hash 配 */
+  .industry-color-0  { color: #1e40af; border-color: #93c5fd; background: rgba(59,130,246,0.12); }   /* 藍 - CCL */
+  .industry-color-1  { color: #9a3412; border-color: #fdba74; background: rgba(249,115,22,0.12); }   /* 橘 - 銅箔 */
+  .industry-color-2  { color: #6b21a8; border-color: #d8b4fe; background: rgba(168,85,247,0.12); }   /* 紫 - 玻纖 */
+  .industry-color-3  { color: #166534; border-color: #86efac; background: rgba(34,197,94,0.12); }    /* 綠 - 化材 */
+  .industry-color-4  { color: #854d0e; border-color: #fde047; background: rgba(234,179,8,0.15); }    /* 黃 - PCB */
+  .industry-color-5  { color: #115e59; border-color: #5eead4; background: rgba(20,184,166,0.12); }   /* 青 - 電子紙 */
+  .industry-color-6  { color: #991b1b; border-color: #fca5a5; background: rgba(239,68,68,0.12); }    /* 紅 */
+  .industry-color-7  { color: #9d174d; border-color: #f9a8d4; background: rgba(236,72,153,0.12); }   /* 粉 */
+  .industry-color-8  { color: #3730a3; border-color: #a5b4fc; background: rgba(99,102,241,0.12); }   /* 靛 */
+  .industry-color-9  { color: #047857; border-color: #6ee7b7; background: rgba(16,185,129,0.12); }   /* 薄荷 */
+  .industry-color-10 { color: #78350f; border-color: #fed7aa; background: rgba(217,119,6,0.12); }    /* 棕 */
+  .industry-color-11 { color: #334155; border-color: #94a3b8; background: rgba(100,116,139,0.12); }  /* 灰藍 */
 
   /* 台股慣例：紅漲綠跌 */
   .num-pos { color: var(--red); font-weight: 500; }
@@ -991,7 +1005,7 @@
         <input type="checkbox" data-code="${s.code}" ${wl.codes.includes(s.code) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
         <span class="stock-code" style="width:60px;font-family:monospace;">${s.code}</span>
         <span style="flex:1;font-weight:500;">${s.name}</span>
-        <span class="industry-chip industry-${s.industry}" style="font-size:11px;">${s.industry || '—'}</span>
+        ${industryChipHtml(s.industry, 'font-size:11px;')}
       </label>
     `).join('');
     updatePickerCount();
@@ -1406,7 +1420,7 @@
         <td>${dragHandle}</td>
         <td class="stock-code">${s.code}${wlToggle}</td>
         <td class="stock-name">${s.name}</td>
-        <td><span class="industry-chip industry-${s.industry}">${s.industry || '—'}</span></td>
+        <td>${industryChipHtml(s.industry)}</td>
         <td class="num" title="股本由 FinMind 抓取，不可手動修改">${fmt(s.capitalYi, {digits:1})}</td>
         <td class="num" title="TTM 4 季滾動毛利率（隨季報更新）">${(s.grossMargin !== null && s.grossMargin !== undefined) ? (s.grossMargin * 100).toFixed(1) + '%' : '<span class="num-muted">—</span>'}</td>
         <td class="num stock-price" title="點擊查看 ${s.code} 個股詳細頁"><a href="detail.html?code=${s.code}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(251,191,36,0.3);text-underline-offset:3px;" onclick="event.stopPropagation()">${fmt(s.price, {digits:2})}</a></td>
@@ -1534,6 +1548,25 @@
     markUnsavedSafely();
     renderIndustryOptions(name);
     showToast(`✓ 已新增「${name}」（記得最後按儲存）`);
+  }
+
+  // v34: 產業色票 — 經典 6 個固定色（向下相容），新類別走 hash deterministic 配色
+  const INDUSTRY_COLOR_OVERRIDES = {
+    'CCL': 0, '銅箔': 1, '玻纖': 2, '化材': 3, 'PCB': 4, '電子紙': 5
+  };
+  function getIndustryColorIndex(name) {
+    if (!name) return null;
+    if (name in INDUSTRY_COLOR_OVERRIDES) return INDUSTRY_COLOR_OVERRIDES[name];
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+    // 模 12，但避開 0-5（保留給經典色，避免新類別撞到 CCL 藍）
+    return 6 + (Math.abs(h) % 6);
+  }
+  function industryChipHtml(name, extraStyle = '') {
+    if (!name) return `<span class="industry-chip" style="${extraStyle}">—</span>`;
+    const idx = getIndustryColorIndex(name);
+    const styleAttr = extraStyle ? ` style="${extraStyle}"` : '';
+    return `<span class="industry-chip industry-color-${idx}"${styleAttr}>${name}</span>`;
   }
 
   // v32: 標記未儲存（用 codebase 既有的 flag + indicator）
