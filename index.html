@@ -241,10 +241,11 @@
   .stock-price.is-down { color: var(--green) !important; }
   [data-theme="dark"] .stock-price.is-up { color: #f87171 !important; }
   [data-theme="dark"] .stock-price.is-down { color: #4ade80 !important; }
-  /* v34: 當日漲跌幅 — 小字、上下排列、台股紅漲綠跌 */
+  /* v35: 當日漲跌幅 — 改放股價右側、上下排列（上:金額 / 下:%），字體比照 EPS 小字 */
   .price-change {
-    display: flex; flex-direction: column; align-items: flex-end;
-    font-size: 10px; line-height: 1.25; margin-top: 1px; font-weight: 500;
+    display: inline-flex; flex-direction: column; align-items: flex-start;
+    font-size: 9px; line-height: 1.15; margin-left: 4px; font-weight: 500;
+    vertical-align: middle; letter-spacing: -0.2px;
   }
   .price-change.num-pos { color: var(--red); }
   .price-change.num-neg { color: var(--green); }
