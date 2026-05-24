@@ -1616,7 +1616,7 @@
   function addNewIndustry() {
     const name = (prompt('新增產業類別名稱（例：半導體、IC 設計、被動元件）：') || '').trim();
     if (!name) return;
-    if (name.length > 16) { showToast('類別名稱請控制在 16 字以內', true); return; }
+    if (name.length > 12) { showToast('類別名稱請控制在 12 字以內', true); return; }
     if (!data.industries) data.industries = [];
     if (data.industries.includes(name)) {
       showToast(`「${name}」已存在，已自動選取`);
