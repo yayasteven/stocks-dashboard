@@ -467,7 +467,7 @@
 
   <div class="header">
     <div>
-      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v33</span></h1>
+      <h1>老爸個股追蹤 <span id="versionLabel" title="目前部署版本">· v34</span></h1>
       <div class="meta">
         上次更新：<span id="lastUpdated">—</span> · 共 <span id="stockCount">0</span> 檔 · <span id="industryCount">0</span> 類
         <span id="cloudStatus" style="margin-left:10px;font-size:12px;"></span>
@@ -1430,6 +1430,7 @@
         <a class="btn" href="https://mops.twse.com.tw/mops/web/t05st10_ifrs?step=1&FILE_DAY=&queryName=&inputType=co_id&isnew=true&TYPEK=&co_id=${s.code}" target="_blank">公開資訊觀測站 ↗</a>
         <a class="btn" href="https://tw.stock.yahoo.com/quote/${s.code}.TW" target="_blank">Yahoo 股市 ↗</a>
         <a class="btn" href="https://goodinfo.tw/tw/StockInfo/ShowK_Chart.asp?STOCK_ID=${s.code}" target="_blank">Goodinfo ↗</a>
+        <button class="btn danger" onclick="event.stopPropagation();deleteStockByCode('${s.code}')" style="margin-left:auto;" title="刪除此個股">🗑 刪除</button>
       </div>
     `;
   }
@@ -1616,6 +1617,10 @@
         return;
       }
       data.stocks.push(stock);
+      // v34 fix: 新增個股必須同步加進 readonly 的「全部」分頁，否則 renderTable 取 wl.codes 看不到新個股，要等下次重整才出現
+      data.watchlists.forEach(wl => {
+        if (wl.readonly && !wl.codes.includes(code)) wl.codes.push(code);
+      });
     }
     data.meta.lastUpdated = new Date().toISOString().slice(0,10);
     data.meta.updatedBy = '手動編輯';
@@ -1624,15 +1629,25 @@
     renderTable();
     showToast(editingCode ? '已更新' : '已新增。記得點「匯出 data.js」存回 OneDrive！');
   }
-  function deleteStock() {
-    if (!editingCode) return;
-    if (!confirm(`確定刪除 ${editingCode}？`)) return;
-    data.stocks = data.stocks.filter(x => x.code !== editingCode);
+  // v34: 刪除核心邏輯抽出，給 modal 內「刪除個股」與展開列「🗑 刪除」共用
+  function deleteStockByCode(code) {
+    const s = data.stocks.find(x => x.code === code);
+    if (!s) return false;
+    if (!confirm(`確定刪除 ${code} ${s.name}？此操作無法復原。`)) return false;
+    data.stocks = data.stocks.filter(x => x.code !== code);
+    // 同步從所有 watchlist（含「全部」與 user 自訂分頁）移除，避免殘留孤兒 code
+    data.watchlists.forEach(wl => {
+      wl.codes = wl.codes.filter(c => c !== code);
+    });
     data.meta.lastUpdated = new Date().toISOString().slice(0,10);
     markDirty();
-    closeModal();
     renderTable();
-    showToast('已刪除。記得匯出存檔！');
+    showToast(`已刪除 ${code} ${s.name}`);
+    return true;
+  }
+  function deleteStock() {
+    if (!editingCode) return;
+    if (deleteStockByCode(editingCode)) closeModal();
   }
 
   // ========== Import / Export ==========
