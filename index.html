@@ -527,6 +527,7 @@
         <option value="custom">自訂順序（可拖拉）</option>
         <option value="code">依代號排序</option>
         <option value="industry">依產業排序</option>
+        <option value="priceChangePct">依今日漲跌幅排序</option>
         <option value="latestMonthYoy">依最新月增率排序</option>
         <option value="eps_2026">依 2026E EPS 排序</option>
         <option value="pe">依本益比排序</option>
@@ -873,6 +874,9 @@
       }
       case 'latestMonthRev': return latestMonth(s)?.revenueYi;
       case 'latestMonthYoy': return latestMonth(s)?.yoy;
+      // v35: 今日漲跌（%為主）— 與 dropdown「依今日漲跌幅排序」對應
+      case 'priceChangePct': return s.priceChangePct;
+      case 'priceChange': return s.priceChange;
       // legacy alias 給舊存的 select.value 用
       case 'eps2026': return s.annualEps?.["2026_est"];
       default: return s.code;
@@ -930,11 +934,13 @@
   }
   function onSortSelectChange() {
     const v = document.getElementById('sortField').value;
-    // select 改值時：custom 重置；其他預設 asc（如果已是該 key 就保留方向）
+    // select 改值時：custom 重置；數值欄預設 desc（看極端值），文字欄預設 asc
     if (v === 'custom') {
       currentSort = { key: 'custom', dir: 'desc' };
     } else if (currentSort.key !== v) {
-      currentSort = { key: v, dir: 'asc' };
+      // v35: 漲跌幅 / 本益比 / 目標價 / EPS / 月增率 等數值欄預設 desc（漲最多/最貴/最高在前）
+      const descByDefault = new Set(['priceChangePct', 'priceChange', 'pe', 'targetPrice', 'eps_2026', 'eps2026', 'latestMonthYoy']);
+      currentSort = { key: v, dir: descByDefault.has(v) ? 'desc' : 'asc' };
     }
     renderTable();
   }
