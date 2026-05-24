@@ -530,7 +530,7 @@
         <option value="priceChangePct">依今日漲跌幅排序</option>
         <option value="latestMonthYoy">依最新月增率排序</option>
         <option value="eps_2026">依 2026E EPS 排序</option>
-        <option value="pe">依本益比排序</option>
+        <option value="pe">依 P/E 排序</option>
         <option value="targetPrice">依目標價排序</option>
       </select>
     </div>
@@ -549,7 +549,7 @@
           <th class="num sortable" data-sort="eps_2025">2025 EPS</th>
           <th class="num sortable" data-sort="eps_2026">2026E EPS</th>
           <th class="num sortable" data-sort="eps_2027">2027E EPS</th>
-          <th class="num sortable" data-sort="pe" title="證交所每日公布的本益比 = 股價 / 最近 4 季實際 EPS">本益比</th>
+          <th class="num sortable" data-sort="pe" title="本益比 P/E = 股價 / 最近 4 季實際 EPS（證交所每日公布）">P/E</th>
           <th class="num sortable" data-sort="targetPrice" title="明年目標價 = 2027E EPS × 本益比">明年目標價</th>
           <th class="num sortable" data-sort="distance" title="目標價相對現價的距離（白點=現價，桃紅點=目標價）">距離</th>
           <th class="num sortable" data-sort="distance" title="依距離給建議：>+20% 買進、±20% 持平、<-20% 賣出">建議</th>
@@ -591,6 +591,7 @@
             <div style="display:flex;gap:4px;align-items:stretch;">
               <select name="industry" id="industrySelect" style="flex:1;"></select>
               <button type="button" class="btn" onclick="addNewIndustry()" title="新增產業類別" style="padding:0 10px;font-weight:600;">+</button>
+              <button type="button" class="btn" onclick="deleteCurrentIndustry()" title="刪除目前選中的產業類別（該類別沒股票在用才能刪）" style="padding:0 10px;font-weight:600;">−</button>
             </div>
             <span id="finmindIndustryHint" style="font-size:10px;color:var(--text-muted);margin-top:2px;"></span>
           </div>
@@ -1569,6 +1570,29 @@
     markUnsavedSafely();
     renderIndustryOptions(name);
     showToast(`✓ 已新增「${name}」（記得最後按儲存）`);
+  }
+
+  // v35: 刪除目前選中的產業類別 — 保守策略：有股票在用就拒絕
+  function deleteCurrentIndustry() {
+    const sel = document.getElementById('industrySelect');
+    if (!sel) return;
+    const target = sel.value;
+    if (!target) { showToast('請先選一個要刪除的產業類別', true); return; }
+    // 檢查是否有股票在用該類別（避免誤刪後股票產業變空白）
+    const inUse = data.stocks.filter(s => s.industry === target);
+    if (inUse.length > 0) {
+      const sample = inUse.map(s => `${s.code} ${s.name}`).slice(0, 3).join('、');
+      const more = inUse.length > 3 ? ` 等 ${inUse.length} 檔` : '';
+      showToast(`「${target}」目前有 ${inUse.length} 檔股票在用（${sample}${more}），請先把它們改成其他類別`, true);
+      return;
+    }
+    if (!confirm(`確定刪除產業類別「${target}」？`)) return;
+    data.industries = (data.industries || []).filter(i => i !== target);
+    markUnsavedSafely();
+    // 預設選 list 第一個（避免空值）
+    const next = (data.industries && data.industries[0]) || '';
+    renderIndustryOptions(next);
+    showToast(`✓ 已刪除「${target}」（記得最後按儲存）`);
   }
 
   // v34: 產業色票 — 經典 6 個固定色（向下相容），新類別走 hash deterministic 配色
