@@ -1151,9 +1151,10 @@
     tab.draggable = true;
     tab.addEventListener('dragstart', (e) => {
       _draggedTabId = wlId;
-      tab.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', wlId); // Firefox 需要這個 data 才會啟動 drag
+      // v35 fix: 延後加 dragging class，避免 drag image 被 browser capture 到半透明狀態
+      setTimeout(() => tab.classList.add('dragging'), 0);
     });
     tab.addEventListener('dragend', () => {
       tab.classList.remove('dragging');
@@ -1175,7 +1176,9 @@
       e.preventDefault();
       tab.classList.remove('tab-drag-over');
       if (!_draggedTabId || _draggedTabId === wlId) return;
-      reorderWatchlists(_draggedTabId, wlId);
+      // v35 fix: 延到 dragend 之後再 reorder + re-render，避免在 drag 序列中 detach DOM 造成殘影
+      const draggedId = _draggedTabId;
+      setTimeout(() => reorderWatchlists(draggedId, wlId), 0);
     });
   }
   function reorderWatchlists(draggedId, targetId) {
