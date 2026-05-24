@@ -302,6 +302,11 @@
     font-size: 12px; line-height: 1;
   }
   .wl-tab .close-x:hover { background: rgba(239,68,68,0.2); color: var(--red); }
+  /* v35: 分頁拖拉排序 — readonly（「全部」）不可拖、不可被插到前面 */
+  .wl-tab[draggable="true"] { cursor: grab; }
+  .wl-tab[draggable="true"]:active { cursor: grabbing; }
+  .wl-tab.dragging { opacity: 0.4; }
+  .wl-tab.tab-drag-over { box-shadow: inset 3px 0 0 var(--accent); }
   .wl-add {
     padding: 8px 12px; background: transparent; border: 1px dashed var(--border);
     color: var(--text-dim); cursor: pointer; font-size: 13px; border-radius: 6px;
@@ -1111,6 +1116,8 @@
           renderTable();
         };
         tab.appendChild(x);
+        // v35: 自訂分頁支援拖拉排序（readonly 的「全部」不掛 draggable，永遠卡最左）
+        setupTabDragHandlers(tab, wl.id);
       }
       container.appendChild(tab);
     });
@@ -1136,6 +1143,53 @@
     renderWatchlistTabs();
     renderTable();
     updateAddBtnLabel();
+  }
+
+  // v35: 分頁拖拉排序
+  let _draggedTabId = null;
+  function setupTabDragHandlers(tab, wlId) {
+    tab.draggable = true;
+    tab.addEventListener('dragstart', (e) => {
+      _draggedTabId = wlId;
+      tab.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', wlId); // Firefox 需要這個 data 才會啟動 drag
+    });
+    tab.addEventListener('dragend', () => {
+      tab.classList.remove('dragging');
+      document.querySelectorAll('.wl-tab.tab-drag-over').forEach(t => t.classList.remove('tab-drag-over'));
+      _draggedTabId = null;
+    });
+    tab.addEventListener('dragover', (e) => {
+      if (!_draggedTabId || _draggedTabId === wlId) return;
+      e.preventDefault(); // 一定要 preventDefault 才能 drop
+      e.dataTransfer.dropEffect = 'move';
+    });
+    tab.addEventListener('dragenter', () => {
+      if (_draggedTabId && _draggedTabId !== wlId) tab.classList.add('tab-drag-over');
+    });
+    tab.addEventListener('dragleave', () => {
+      tab.classList.remove('tab-drag-over');
+    });
+    tab.addEventListener('drop', (e) => {
+      e.preventDefault();
+      tab.classList.remove('tab-drag-over');
+      if (!_draggedTabId || _draggedTabId === wlId) return;
+      reorderWatchlists(_draggedTabId, wlId);
+    });
+  }
+  function reorderWatchlists(draggedId, targetId) {
+    const idx = data.watchlists.findIndex(w => w.id === draggedId);
+    const targetIdx = data.watchlists.findIndex(w => w.id === targetId);
+    if (idx === -1 || targetIdx === -1) return;
+    if (data.watchlists[idx].readonly) return;           // readonly 不能被移
+    if (data.watchlists[targetIdx].readonly) return;     // 不能放到 readonly（「全部」）之前
+    const item = data.watchlists.splice(idx, 1)[0];
+    // splice 後重新找 target 位置（idx < targetIdx 的情況 target 會前移一格）
+    const newTargetIdx = data.watchlists.findIndex(w => w.id === targetId);
+    data.watchlists.splice(newTargetIdx, 0, item);
+    markDirty();
+    renderWatchlistTabs();
   }
 
   function getActiveWatchlistCodes() {
