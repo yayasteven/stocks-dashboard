@@ -179,10 +179,11 @@
   thead { background: var(--bg-card-2); }
   th {
     text-align: left; padding: 7px 10px; font-weight: 500; color: var(--text-dim);
-    border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
     user-select: none; font-size: 12px;
   }
-  th:hover { color: var(--text); }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: var(--text); }
   th.num, td.num { text-align: right; }
   th.sortable::after { content: " ↕"; opacity: 0.3; font-size: 10px; }
   th.sort-asc::after { content: " ↑"; opacity: 1; color: var(--accent); }
@@ -495,35 +496,35 @@
       <select id="industryFilter" onchange="renderTable()">
         <option value="">全部產業</option>
       </select>
-      <select id="sortField" onchange="renderTable()">
+      <select id="sortField" onchange="onSortSelectChange()" title="或點欄位 header 排序">
         <option value="custom">自訂順序（可拖拉）</option>
         <option value="code">依代號排序</option>
         <option value="industry">依產業排序</option>
         <option value="latestMonthYoy">依最新月增率排序</option>
-        <option value="eps2026">依 2026E EPS 排序</option>
+        <option value="eps_2026">依 2026E EPS 排序</option>
         <option value="pe">依本益比排序</option>
         <option value="targetPrice">依目標價排序</option>
       </select>
     </div>
     <table>
-      <thead>
+      <thead onclick="onHeaderClick(event)">
         <tr>
           <th title="拖拉重排"></th>
-          <th>代號</th>
-          <th>名稱</th>
-          <th>產業</th>
-          <th class="num">股本(億)</th>
-          <th class="num" title="TTM 4 季滾動毛利率 = 4 季毛利 / 4 季營收">毛利率</th>
-          <th class="num">股價</th>
-          <th class="num">2024 EPS</th>
-          <th class="num">2025 EPS</th>
-          <th class="num">2026E EPS</th>
-          <th class="num">2027E EPS</th>
-          <th class="num" title="證交所每日公布的本益比 = 股價 / 最近 4 季實際 EPS">本益比</th>
-          <th class="num" title="明年目標價 = 2027E EPS × 本益比">明年目標價</th>
-          <th class="num" title="目標價相對現價的距離（白點=現價，桃紅點=目標價）">距離</th>
-          <th class="num" title="依距離給建議：>+20% 買進、±20% 持平、<-20% 賣出">建議</th>
-          <th class="num" title="最新月營收。滑鼠移上看近 12 月">月營收(億)</th>
+          <th class="sortable" data-sort="code">代號</th>
+          <th class="sortable" data-sort="name">名稱</th>
+          <th class="sortable" data-sort="industry">產業</th>
+          <th class="num sortable" data-sort="capitalYi">股本(億)</th>
+          <th class="num sortable" data-sort="grossMargin" title="TTM 4 季滾動毛利率 = 4 季毛利 / 4 季營收">毛利率</th>
+          <th class="num sortable" data-sort="price">股價</th>
+          <th class="num sortable" data-sort="eps_2024">2024 EPS</th>
+          <th class="num sortable" data-sort="eps_2025">2025 EPS</th>
+          <th class="num sortable" data-sort="eps_2026">2026E EPS</th>
+          <th class="num sortable" data-sort="eps_2027">2027E EPS</th>
+          <th class="num sortable" data-sort="pe" title="證交所每日公布的本益比 = 股價 / 最近 4 季實際 EPS">本益比</th>
+          <th class="num sortable" data-sort="targetPrice" title="明年目標價 = 2027E EPS × 本益比">明年目標價</th>
+          <th class="num sortable" data-sort="distance" title="目標價相對現價的距離（白點=現價，桃紅點=目標價）">距離</th>
+          <th class="num sortable" data-sort="distance" title="依距離給建議：>+20% 買進、±20% 持平、<-20% 賣出">建議</th>
+          <th class="num sortable" data-sort="latestMonthRev" title="最新月營收。滑鼠移上看近 12 月">月營收(億)</th>
           <th>備註</th>
         </tr>
       </thead>
@@ -708,7 +709,8 @@
   // ========== State ==========
   let data = JSON.parse(JSON.stringify(window.STOCK_DATA || {meta:{lastUpdated:"—"},industries:[],stocks:[]}));
   let editingCode = null;
-  let sortDirection = 'asc';
+  // v34: 全域排序狀態（header 點擊與 sortField select 共用 source of truth）
+  let currentSort = { key: 'custom', dir: 'desc' };
   // v19: 確保 watchlists 結構存在（向下相容）
   if (!data.watchlists) {
     data.watchlists = [{ id: 'all', name: '全部', codes: data.stocks.map(s => s.code), readonly: true }];
@@ -822,10 +824,37 @@
     indSel.value = currentVal;
   }
 
+  // v34: 取得單一 stock 在指定 sortKey 上的可比較值（null/undefined 由 sort 函式統一處理）
+  function getSortValue(s, key) {
+    const getPE = x => getEffectivePE(x).value;
+    switch (key) {
+      case 'code': return s.code;
+      case 'name': return s.name;
+      case 'industry': return s.industry;
+      case 'capitalYi': return s.capitalYi;
+      case 'grossMargin': return s.grossMargin;
+      case 'price': return s.price;
+      case 'eps_2024': return s.annualEps?.["2024"];
+      case 'eps_2025': return s.annualEps?.["2025"];
+      case 'eps_2026': return s.annualEps?.["2026_est"];
+      case 'eps_2027': return s.annualEps?.["2027_est"];
+      case 'pe': return getPE(s);
+      case 'targetPrice': return calcTargetPrice(s.annualEps?.["2027_est"], getPE(s));
+      case 'distance': {
+        const tp = calcTargetPrice(s.annualEps?.["2027_est"], getPE(s));
+        return (tp != null && s.price) ? (tp - s.price) / s.price : null;
+      }
+      case 'latestMonthRev': return latestMonth(s)?.revenueYi;
+      case 'latestMonthYoy': return latestMonth(s)?.yoy;
+      // legacy alias 給舊存的 select.value 用
+      case 'eps2026': return s.annualEps?.["2026_est"];
+      default: return s.code;
+    }
+  }
+
   function getSortedFiltered() {
     const search = document.getElementById('searchInput').value.toLowerCase().trim();
     const indFilter = document.getElementById('industryFilter').value;
-    const sortKey = document.getElementById('sortField').value;
     const activeCodes = new Set(getActiveWatchlistCodes());
     let arr = data.stocks.filter(s => {
       if (!activeCodes.has(s.code)) return false;
@@ -833,23 +862,63 @@
       if (indFilter && s.industry !== indFilter) return false;
       return true;
     });
-    if (sortKey === 'custom') return arr; // 不排序，照 data.stocks 順序
+    const { key, dir } = currentSort;
+    if (!key || key === 'custom') return arr; // 不排序，照 data.stocks 順序
+    const sign = dir === 'asc' ? 1 : -1;
     arr.sort((a, b) => {
-      let va, vb;
-      const getPE = s => getEffectivePE(s).value;
-      switch(sortKey) {
-        case 'code': va = a.code; vb = b.code; break;
-        case 'industry': va = a.industry; vb = b.industry; break;
-        case 'latestMonthYoy': va = latestMonth(a)?.yoy ?? -999; vb = latestMonth(b)?.yoy ?? -999; break;
-        case 'eps2026': va = a.annualEps?.["2026_est"] ?? -999; vb = b.annualEps?.["2026_est"] ?? -999; break;
-        case 'pe': va = getPE(a) ?? 99999; vb = getPE(b) ?? 99999; break;
-        case 'targetPrice': va = calcTargetPrice(a.annualEps?.["2027_est"], getPE(a)) ?? -999; vb = calcTargetPrice(b.annualEps?.["2027_est"], getPE(b)) ?? -999; break;
-        default: va = a.code; vb = b.code;
-      }
-      if (typeof va === 'string') return va.localeCompare(vb);
-      return vb - va; // descending for numeric
+      const va = getSortValue(a, key);
+      const vb = getSortValue(b, key);
+      // null/undefined 永遠 sink（不論 asc/desc 都排到最後）
+      const aNull = va == null || (typeof va === 'number' && isNaN(va));
+      const bNull = vb == null || (typeof vb === 'number' && isNaN(vb));
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      if (typeof va === 'string') return va.localeCompare(vb) * sign;
+      return (va - vb) * sign;
     });
     return arr;
+  }
+
+  // v34: header 點擊排序 — 同 key toggle 方向，換 key 預設 asc（小到大）
+  function setSortBy(key) {
+    if (!key) return;
+    if (currentSort.key === key) {
+      currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort = { key, dir: 'asc' };
+    }
+    // 同步 sortField select：該 key 若是 select 內既有選項就同步顯示，否則顯示為空
+    const sel = document.getElementById('sortField');
+    if (sel) {
+      const hasOption = [...sel.options].some(o => o.value === key);
+      sel.value = hasOption ? key : '';
+    }
+    renderTable();
+  }
+  function onHeaderClick(e) {
+    const th = e.target.closest('th[data-sort]');
+    if (!th) return;
+    setSortBy(th.dataset.sort);
+  }
+  function onSortSelectChange() {
+    const v = document.getElementById('sortField').value;
+    // select 改值時：custom 重置；其他預設 asc（如果已是該 key 就保留方向）
+    if (v === 'custom') {
+      currentSort = { key: 'custom', dir: 'desc' };
+    } else if (currentSort.key !== v) {
+      currentSort = { key: v, dir: 'asc' };
+    }
+    renderTable();
+  }
+  // v34: 在 renderTable 結尾呼叫，更新 header 的 ↑↓↕ 視覺
+  function updateSortHeaders() {
+    document.querySelectorAll('thead th.sortable').forEach(th => {
+      th.classList.remove('sort-asc', 'sort-desc');
+      if (th.dataset.sort === currentSort.key) {
+        th.classList.add(currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+      }
+    });
   }
 
   // EPS 年增率小字 (台股慣例：正紅負綠；預測值整格藍)
@@ -1290,10 +1359,11 @@
 
   function renderTable() {
     renderHeader();
+    updateSortHeaders();
     const arr = getSortedFiltered();
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = '';
-    const isCustomSort = document.getElementById('sortField').value === 'custom';
+    const isCustomSort = currentSort.key === 'custom';
     arr.forEach(s => {
       const lm = latestMonth(s);
       const pe26 = calcPE(s.price, s.annualEps?.["2026_est"]);
