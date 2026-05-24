@@ -234,8 +234,20 @@
   .eps-predicted-bold { color: #15803d; font-weight: 600; }
   /* 明年目標價 — 桃紅 */
   .target-price { color: #be185d; font-weight: 600; }
-  /* 股價 — 金黃 */
+  /* 股價 — 金黃（平盤或無漲跌資料時的預設色） */
   .stock-price { color: #b45309; font-weight: 600; }
+  /* v34: 股價本身也跟漲跌變色（覆蓋預設金黃） */
+  .stock-price.is-up { color: var(--red) !important; }
+  .stock-price.is-down { color: var(--green) !important; }
+  [data-theme="dark"] .stock-price.is-up { color: #f87171 !important; }
+  [data-theme="dark"] .stock-price.is-down { color: #4ade80 !important; }
+  /* v34: 當日漲跌幅 — 小字、上下排列、台股紅漲綠跌 */
+  .price-change {
+    display: flex; flex-direction: column; align-items: flex-end;
+    font-size: 10px; line-height: 1.25; margin-top: 1px; font-weight: 500;
+  }
+  .price-change.num-pos { color: var(--red); }
+  .price-change.num-neg { color: var(--green); }
 
   /* Inline 編輯 */
   .editable-cell { position: relative; transition: background 0.1s; }
@@ -1423,7 +1435,7 @@
         <td>${industryChipHtml(s.industry)}</td>
         <td class="num" title="股本由 FinMind 抓取，不可手動修改">${fmt(s.capitalYi, {digits:1})}</td>
         <td class="num" title="TTM 4 季滾動毛利率（隨季報更新）">${(s.grossMargin !== null && s.grossMargin !== undefined) ? (s.grossMargin * 100).toFixed(1) + '%' : '<span class="num-muted">—</span>'}</td>
-        <td class="num stock-price" title="點擊查看 ${s.code} 個股詳細頁"><a href="detail.html?code=${s.code}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(251,191,36,0.3);text-underline-offset:3px;" onclick="event.stopPropagation()">${fmt(s.price, {digits:2})}</a></td>
+        <td class="num stock-price ${priceTrendClass(s)}" title="點擊查看 ${s.code} 個股詳細頁"><a href="detail.html?code=${s.code}" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:rgba(251,191,36,0.3);text-underline-offset:3px;" onclick="event.stopPropagation()">${fmt(s.price, {digits:2})}</a>${priceChangeHtml(s)}</td>
         <td class="num" title="2024 EPS 歷史值，由 FinMind 自動帶入，不可手動修改">${epsCell(eps["2024"], null)}</td>
         <td class="num" title="2025 EPS 歷史值，由 FinMind 自動帶入，不可手動修改">${epsCell(eps["2025"], eps["2024"])}</td>
         <td ${edit('eps_2026_est')}>${epsCell(eps["2026_est"], eps["2025"], true)}</td>
@@ -1562,6 +1574,22 @@
     // 模 12，但避開 0-5（保留給經典色，避免新類別撞到 CCL 藍）
     return 6 + (Math.abs(h) % 6);
   }
+  // v34: 股價 td 的 modifier class — 漲(紅) / 跌(綠) / 平盤或無資料(空字串→保留金黃)
+  function priceTrendClass(s) {
+    if (s.priceChange == null || s.priceChange === 0) return '';
+    return s.priceChange > 0 ? 'is-up' : 'is-down';
+  }
+  // v34: 當日漲跌幅小字（價錢 + %，上下排列、紅漲綠跌；無資料回傳空字串）
+  function priceChangeHtml(s) {
+    if (s.priceChange == null || s.priceChangePct == null) return '';
+    const cls = s.priceChange >= 0 ? 'num-pos' : 'num-neg';
+    const sign = s.priceChange >= 0 ? '+' : '';
+    return `<div class="price-change ${cls}">` +
+           `<span>${sign}${s.priceChange.toFixed(2)}</span>` +
+           `<span>${sign}${s.priceChangePct.toFixed(2)}%</span>` +
+           `</div>`;
+  }
+
   function industryChipHtml(name, extraStyle = '') {
     if (!name) return `<span class="industry-chip" style="${extraStyle}">—</span>`;
     const idx = getIndustryColorIndex(name);
@@ -2486,7 +2514,12 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     }
 
     const today = new Date().toISOString().slice(0,10);
-    const targets = data.stocks.filter(s => !s.priceUpdated || s.priceUpdated < today);
+    // v34: 即使今天已更新，但 priceChange 缺漏（舊資料 / 新功能 backfill）也納入更新清單
+    const targets = data.stocks.filter(s => {
+      if (!s.priceUpdated || s.priceUpdated < today) return true;
+      if (s.priceChange == null) return true;
+      return false;
+    });
     if (targets.length === 0) {
       console.log('[v32] auto-refresh: 所有股價皆為今天，無需更新');
       localStorage.setItem(THROTTLE_KEY, String(Date.now()));
@@ -2509,14 +2542,24 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
     for (let i = 0; i < targets.length; i++) {
       const s = targets[i];
       try {
-        const prices = await finmindFetch('TaiwanStockPrice', s.code, isoDaysAgo(7), today);
+        const prices = await finmindFetch('TaiwanStockPrice', s.code, isoDaysAgo(10), today);
         if (prices && prices.length) {
           const sorted = [...prices].sort((a,b) => b.date.localeCompare(a.date));
           const latest = sorted[0];
-          if (latest.close && latest.date && latest.date !== s.priceUpdated) {
+          // v34: 找前一交易日（latest.date 之前最近一筆有 close 的）
+          const prev = sorted.find(p => p.date < latest.date && p.close);
+          if (latest.close && latest.date) {
+            const isNewDate = latest.date !== s.priceUpdated;
             s.price = latest.close;
             s.priceUpdated = latest.date;
-            updated++;
+            if (prev && prev.close) {
+              s.priceChange = +(latest.close - prev.close).toFixed(2);
+              s.priceChangePct = +((latest.close - prev.close) / prev.close * 100).toFixed(2);
+            } else {
+              s.priceChange = null;
+              s.priceChangePct = null;
+            }
+            if (isNewDate || prev) updated++;
           }
         }
       } catch (e) {
