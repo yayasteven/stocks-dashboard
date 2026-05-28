@@ -509,6 +509,7 @@
     </div>
     <div class="actions">
       <button class="btn primary" id="addBtn" onclick="onAddBtnClick()">＋ 新增個股</button>
+      <button class="btn" onclick="openEpsForecastModal()" title="批次貼上多家機構預估 EPS（從 Yahoo / Goodinfo / 鉅亨網複製）">📋 機構預估</button>
       <button class="btn" id="pullBtn" onclick="pullFromGist()" style="display:none">📥 拉取</button>
       <button class="btn" id="syncBtn" onclick="syncToGist()" style="display:none">📤 同步</button>
       <button class="btn" onclick="exportData()">⬇ 匯出</button>
@@ -732,6 +733,47 @@
       <button class="btn" onclick="copySetupLink()" id="copyLinkBtn" style="display:none" title="產生一次性啟動連結，給新裝置初次設定用（請勿直接加入書籤）">📋 複製啟動連結</button>
       <button class="btn" onclick="testCloudConnection()">🔌 測試連線</button>
       <button class="btn primary" onclick="saveCloudConfig()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- v35: 批次匯入機構預估 EPS Modal -->
+<div class="modal-overlay" id="epsForecastModal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <h2>📋 批次匯入機構預估 EPS</h2>
+      <button class="close" onclick="closeEpsForecastModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;line-height:1.6;">
+        從 Yahoo 股市 / Goodinfo / 鉅亨網等網站，把「分析師預估」整段選起來 copy，分年度貼到下方。系統會自動抓出所有數字、計算平均跟離散度（σ 標準差越大 = 各家機構意見越分歧）。
+      </p>
+
+      <div class="form-field" style="margin-bottom:14px;">
+        <label>個股</label>
+        <select id="epsForecastStockSelect"></select>
+      </div>
+
+      <div class="form-field" style="margin-bottom:14px;">
+        <label>2026 EPS 預估（多家機構數字，整段貼上即可）</label>
+        <textarea id="epsForecastInput2026" rows="5" placeholder="範例：&#10;第一金證 65.51&#10;群益 67.23&#10;凱基 70.18&#10;富邦 68.40" style="font-family:inherit;"></textarea>
+        <span id="epsForecastResult2026" style="font-size:12px;color:var(--text-dim);margin-top:4px;display:block;min-height:18px;"></span>
+      </div>
+
+      <div class="form-field" style="margin-bottom:14px;">
+        <label>2027 EPS 預估</label>
+        <textarea id="epsForecastInput2027" rows="5" placeholder="同上" style="font-family:inherit;"></textarea>
+        <span id="epsForecastResult2027" style="font-size:12px;color:var(--text-dim);margin-top:4px;display:block;min-height:18px;"></span>
+      </div>
+
+      <div class="form-field">
+        <label>來源備註（選填，例如「Yahoo 股市 2026/05/28」）</label>
+        <input type="text" id="epsForecastSourceNote" placeholder="留空也可，會自動記錄今天日期">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeEpsForecastModal()">取消</button>
+      <button class="btn primary" onclick="applyEpsForecast()">套用到此個股</button>
     </div>
   </div>
 </div>
@@ -1650,6 +1692,106 @@
     const next = (data.industries && data.industries[0]) || '';
     renderIndustryOptions(next);
     showToast(`✓ 已刪除「${target}」（記得最後按儲存）`);
+  }
+
+  // v35: 批次匯入機構預估 EPS — 從原文抓所有 float、算 avg/min/max/stddev
+  // 設計取捨：parser 故意不分辨機構名稱（Yahoo/Goodinfo/鉅亨網格式各異，硬 parse 名稱會脆弱），
+  // 只抓數字。未來如果要記「哪家機構喊多少」再加 structured input。
+  const FORECAST_YEARS = ['2026_est', '2027_est']; // 跟主表 EPS 欄位對應；明年要升年度時手動改這裡
+
+  function parseEpsList(text) {
+    if (!text || !text.trim()) return null;
+    // 抓所有 float / int（含負數），EPS 合理範圍 -100 ~ 200（過濾股價、本益比、年份等雜訊）
+    const matches = text.match(/-?\d+(?:\.\d+)?/g) || [];
+    const values = matches
+      .map(parseFloat)
+      .filter(v => !isNaN(v) && v >= -100 && v <= 200);
+    if (!values.length) return null;
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const variance = values.reduce((a, b) => a + (b - avg) ** 2, 0) / values.length;
+    const stddev = Math.sqrt(variance);
+    return {
+      values,
+      avg: +avg.toFixed(3),
+      min, max,
+      stddev: +stddev.toFixed(3),
+      count: values.length,
+    };
+  }
+
+  function openEpsForecastModal() {
+    // 個股 dropdown 用所有 stocks（不受 watchlist filter 限制）
+    const sel = document.getElementById('epsForecastStockSelect');
+    sel.innerHTML = data.stocks
+      .map(s => `<option value="${s.code}">${s.code} ${s.name}</option>`)
+      .join('');
+    // 預設選當前展開的個股（如有）或第一檔
+    const expanded = document.querySelector('tr.detail-row');
+    if (expanded && expanded.dataset.detail) sel.value = expanded.dataset.detail;
+    // reset inputs
+    FORECAST_YEARS.forEach(y => {
+      const yr = y.slice(0, 4);
+      document.getElementById(`epsForecastInput${yr}`).value = '';
+      document.getElementById(`epsForecastResult${yr}`).textContent = '';
+    });
+    document.getElementById('epsForecastSourceNote').value = '';
+    // 即時 parse 預覽
+    FORECAST_YEARS.forEach(y => {
+      const yr = y.slice(0, 4);
+      document.getElementById(`epsForecastInput${yr}`).oninput = () => previewForecastParse(y);
+    });
+    document.getElementById('epsForecastModal').classList.add('show');
+  }
+  function closeEpsForecastModal() {
+    document.getElementById('epsForecastModal').classList.remove('show');
+  }
+  function previewForecastParse(yearKey) {
+    const yr = yearKey.slice(0, 4);
+    const text = document.getElementById(`epsForecastInput${yr}`).value;
+    const result = parseEpsList(text);
+    const resultEl = document.getElementById(`epsForecastResult${yr}`);
+    if (!result) { resultEl.textContent = ''; return; }
+    resultEl.innerHTML = `→ <b>平均 ${result.avg.toFixed(2)}</b> · ${result.count} 家 · 最低 ${result.min.toFixed(2)} / 最高 ${result.max.toFixed(2)} · σ ${result.stddev.toFixed(2)}`;
+  }
+  function applyEpsForecast() {
+    const code = document.getElementById('epsForecastStockSelect').value;
+    const stock = data.stocks.find(s => s.code === code);
+    if (!stock) { showToast('找不到該個股', true); return; }
+
+    const sourceNote = document.getElementById('epsForecastSourceNote').value.trim() || 'Yahoo / Goodinfo / 鉅亨';
+    const today = new Date().toISOString().slice(0, 10);
+    const applied = [];
+
+    if (!stock.epsForecasts) stock.epsForecasts = {};
+    if (!stock.annualEps) stock.annualEps = {};
+
+    FORECAST_YEARS.forEach(yearKey => {
+      const yr = yearKey.slice(0, 4);
+      const text = document.getElementById(`epsForecastInput${yr}`).value;
+      const result = parseEpsList(text);
+      if (!result) return;
+      // 寫進 forecasts metadata（含 raw values 跟統計）
+      stock.epsForecasts[yearKey] = {
+        ...result,
+        sourceNote,
+        updatedAt: today,
+      };
+      // 同步主顯示欄位 annualEps（覆蓋）
+      stock.annualEps[yearKey] = +result.avg.toFixed(2);
+      applied.push(`${yr}E: ${result.avg.toFixed(2)} (${result.count}家)`);
+    });
+
+    if (applied.length === 0) {
+      showToast('沒解析到任何數字，請檢查貼上內容', true);
+      return;
+    }
+    data.meta.lastUpdated = today;
+    markDirty();
+    closeEpsForecastModal();
+    renderTable();
+    showToast(`✓ 已套用到 ${code} ${stock.name}：${applied.join(' / ')}`);
   }
 
   // v34: 產業色票 — 經典 6 個固定色（向下相容），新類別走 hash deterministic 配色
@@ -2719,7 +2861,7 @@ if (typeof module !== 'undefined') { module.exports = STOCK_DATA; }
   }
   init();
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeSettingsModal(); closePickerModal(); }
+    if (e.key === 'Escape') { closeModal(); closeSettingsModal(); closePickerModal(); closeEpsForecastModal(); }
   });
 </script>
 </body>
