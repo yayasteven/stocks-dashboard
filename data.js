@@ -3,8 +3,8 @@
 // 將本檔覆蓋原本的 data.js 即可同步至各電腦
 const STOCK_DATA = {
   "meta": {
-    "lastUpdated": "2026-05-22",
-    "updatedBy": "手動編輯",
+    "lastUpdated": "2026-05-27",
+    "updatedBy": "排程：每日股價更新",
     "schemaVersion": 3,
     "finmindToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoieWF5YXN0ZXZlbiIsImVtYWlsIjoieWF5YXN0dkB5YWhvby5jb20udHciLCJ0b2tlbl92ZXJzaW9uIjowfQ.Uxl01Aky4JC6vtS3TrochNcLNDTlNQpoEnwugtduRic",
     "signalThresholds": {
@@ -27,8 +27,8 @@ const STOCK_DATA = {
       "name": "台光電",
       "industry": "CCL",
       "capitalYi": 35.8,
-      "price": 5005,
-      "priceUpdated": "2026-05-22",
+      "price": 5305,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 27.81,
         "2025": 41.66,
@@ -360,8 +360,8 @@ const STOCK_DATA = {
       "name": "台燿",
       "industry": "CCL",
       "capitalYi": 28.9,
-      "price": 1455,
-      "priceUpdated": "2026-05-22",
+      "price": 1630,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 9.55,
         "2025": 12.13,
@@ -693,8 +693,8 @@ const STOCK_DATA = {
       "name": "金居",
       "industry": "銅箔",
       "capitalYi": 25.3,
-      "price": 522,
-      "priceUpdated": "2026-05-22",
+      "price": 560,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 3.64,
         "2025": 4.21,
@@ -1026,8 +1026,8 @@ const STOCK_DATA = {
       "name": "富喬",
       "industry": "玻纖",
       "capitalYi": 58.5,
-      "price": 107,
-      "priceUpdated": "2026-05-22",
+      "price": 103.5,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 0.13,
         "2025": 1.64,
@@ -1359,8 +1359,8 @@ const STOCK_DATA = {
       "name": "國精化",
       "industry": "化材",
       "capitalYi": 10.4,
-      "price": 286.5,
-      "priceUpdated": "2026-05-22",
+      "price": 270.5,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 2.25,
         "2025": 2.01,
@@ -1692,8 +1692,8 @@ const STOCK_DATA = {
       "name": "元太",
       "industry": "電子紙",
       "capitalYi": 116.5,
-      "price": 224,
-      "priceUpdated": "2026-05-22",
+      "price": 249,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 7.75,
         "2025": 9.13,
@@ -2025,8 +2025,8 @@ const STOCK_DATA = {
       "name": "台積電",
       "industry": "CCL",
       "capitalYi": 2593.2,
-      "price": 2255,
-      "priceUpdated": "2026-05-22",
+      "price": 2300,
+      "priceUpdated": "2026-05-27",
       "annualEps": {
         "2024": 45.26,
         "2025": 66.26,
