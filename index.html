@@ -766,6 +766,12 @@
         <span id="epsForecastResult2027" style="font-size:12px;color:var(--text-dim);margin-top:4px;display:block;min-height:18px;"></span>
       </div>
 
+      <div class="form-field" style="margin-bottom:14px;">
+        <label>合理 P/E 預估（多家機構喊的目標 PE 倍數，同樣整段貼上）</label>
+        <textarea id="epsForecastInputPE" rows="3" placeholder="範例：&#10;第一金證 25&#10;群益 28.5&#10;凱基 24" style="font-family:inherit;"></textarea>
+        <span id="epsForecastResultPE" style="font-size:12px;color:var(--text-dim);margin-top:4px;display:block;min-height:18px;"></span>
+      </div>
+
       <div class="form-field">
         <label>來源備註（選填，例如「Yahoo 股市 2026/05/28」）</label>
         <input type="text" id="epsForecastSourceNote" placeholder="留空也可，會自動記錄今天日期">
@@ -1730,18 +1736,21 @@
     // 預設選當前展開的個股（如有）或第一檔
     const expanded = document.querySelector('tr.detail-row');
     if (expanded && expanded.dataset.detail) sel.value = expanded.dataset.detail;
-    // reset inputs
+    // reset inputs（EPS 各年度 + PE）
     FORECAST_YEARS.forEach(y => {
       const yr = y.slice(0, 4);
       document.getElementById(`epsForecastInput${yr}`).value = '';
       document.getElementById(`epsForecastResult${yr}`).textContent = '';
     });
+    document.getElementById('epsForecastInputPE').value = '';
+    document.getElementById('epsForecastResultPE').textContent = '';
     document.getElementById('epsForecastSourceNote').value = '';
-    // 即時 parse 預覽
+    // 即時 parse 預覽（EPS 各年度走 previewForecastParse、PE 走 previewForecastParsePE）
     FORECAST_YEARS.forEach(y => {
       const yr = y.slice(0, 4);
       document.getElementById(`epsForecastInput${yr}`).oninput = () => previewForecastParse(y);
     });
+    document.getElementById('epsForecastInputPE').oninput = previewForecastParsePE;
     document.getElementById('epsForecastModal').classList.add('show');
   }
   function closeEpsForecastModal() {
@@ -1754,6 +1763,14 @@
     const resultEl = document.getElementById(`epsForecastResult${yr}`);
     if (!result) { resultEl.textContent = ''; return; }
     resultEl.innerHTML = `→ <b>平均 ${result.avg.toFixed(2)}</b> · ${result.count} 家 · 最低 ${result.min.toFixed(2)} / 最高 ${result.max.toFixed(2)} · σ ${result.stddev.toFixed(2)}`;
+  }
+  // v35: PE parser preview（reuse parseEpsList，數字範圍跟 EPS 一樣 -100~200 涵蓋 PE 5~100）
+  function previewForecastParsePE() {
+    const text = document.getElementById('epsForecastInputPE').value;
+    const result = parseEpsList(text);
+    const resultEl = document.getElementById('epsForecastResultPE');
+    if (!result) { resultEl.textContent = ''; return; }
+    resultEl.innerHTML = `→ <b>合理 P/E 平均 ${result.avg.toFixed(1)}</b> · ${result.count} 家 · 最低 ${result.min.toFixed(1)} / 最高 ${result.max.toFixed(1)} · σ ${result.stddev.toFixed(2)}`;
   }
   function applyEpsForecast() {
     const code = document.getElementById('epsForecastStockSelect').value;
@@ -1782,6 +1799,20 @@
       stock.annualEps[yearKey] = +result.avg.toFixed(2);
       applied.push(`${yr}E: ${result.avg.toFixed(2)} (${result.count}家)`);
     });
+
+    // v35: PE 處理（寫進 stock.peForecast 跟 stock.userPER）
+    const peText = document.getElementById('epsForecastInputPE').value;
+    const peResult = parseEpsList(peText);
+    if (peResult) {
+      stock.peForecast = {
+        ...peResult,
+        sourceNote,
+        updatedAt: today,
+      };
+      // 同步 userPER（主表「P/E」欄會顯示這個、目標價也用這個算）
+      stock.userPER = +peResult.avg.toFixed(2);
+      applied.push(`合理 P/E: ${peResult.avg.toFixed(1)} (${peResult.count}家)`);
+    }
 
     if (applied.length === 0) {
       showToast('沒解析到任何數字，請檢查貼上內容', true);
